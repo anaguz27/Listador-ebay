@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#e8590c" />
+<title>Listador eBay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1410; --paper:#fbf6ee; --card:#fff; --amber:#e8590c;
+    --amber-soft:#fff0e6; --sage:#3d6b54; --border:#e7ddcf; --muted:#8a7d6c;
+    --display:'Fraunces',Georgia,serif; --body:'Outfit',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;background:var(--paper);font-family:var(--body);color:var(--ink);}
+  .wrap{max-width:540px;margin:0 auto;padding:22px 18px 60px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .fadeUp{animation:fadeUp .4s ease both;}
+  header{display:flex;align-items:center;gap:9px;margin-bottom:22px;}
+  .logo{width:38px;height:38px;border-radius:11px;background:var(--amber);display:grid;place-items:center;box-shadow:0 6px 16px rgba(232,89,12,.27);color:#fff;font-size:20px;}
+  h1{font-family:var(--display);font-size:25px;font-weight:700;margin:0;line-height:1;}
+  .sub{margin:3px 0 0;font-size:13px;color:var(--muted);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;}
+  .lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.02em;text-transform:uppercase;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+  .thumb img{width:100%;height:100%;object-fit:cover;}
+  .thumb button{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;cursor:pointer;}
+  .act{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:16px 12px;font-size:15px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;font-family:var(--body);}
+  .hint{margin:10px 2px 0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  select,textarea,input{font-family:var(--body);}
+  select{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);background:var(--paper);}
+  textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;resize:vertical;color:var(--ink);background:var(--paper);}
+  .gen{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:600;color:#fff;background:var(--amber);box-shadow:0 10px 24px rgba(232,89,12,.28);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;font-family:var(--body);}
+  .gen:disabled{background:#d8cdbd;box-shadow:none;cursor:default;}
+  .err{margin-top:16px;background:#fff4f0;border:1px solid #ffd3c2;border-radius:14px;padding:14px;display:flex;gap:10px;align-items:flex-start;}
+  .err strong{font-size:14px;color:#9c2a14;}
+  .err p{margin:3px 0 0;font-size:13.5px;color:#8a4030;}
+  .field-h{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .field-h.warn{color:#c0341a;}
+  .chip{background:var(--amber-soft);color:#b8430a;border-radius:8px;padding:4px 9px;font-size:13px;font-weight:500;}
+  .spec{display:flex;gap:8px;font-size:14px;align-items:baseline;}
+  .spec .k{color:var(--muted);min-width:96px;font-weight:500;}
+  .resbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+  .primary{border:none;background:var(--ink);color:#fff;border-radius:14px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
+  .ghost{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:14px;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
+  .ed{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:10px;padding:7px 12px;font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--body);}
+  .ed.on{background:var(--ink);color:#fff;}
+  .edin{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;outline:none;color:var(--ink);background:var(--paper);font-family:var(--body);}
+  h2{font-family:var(--display);font-size:22px;font-weight:600;margin:0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🏷️</div>
+    <div>
+      <h1>Listador eBay</h1>
+      <p class="sub">Sube fotos · obtén el listado optimizado</p>
+    </div>
+  </header>
+
+  <section class="card fadeUp">
+    <label class="lbl">Fotos del producto (<span id="count">0</span>/16)</label>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="grid2">
+      <button class="act" id="btnCam">📷<span>Cámara</span></button>
+      <button class="act" id="btnGal">⬆️<span>Galería</span></button>
+    </div>
+    <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
+    <input id="inGal" type="file" accept="image/*" multiple hidden>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16.</p>
+  </section>
+
+  <section class="card fadeUp" style="margin-top:16px">
+    <label class="lbl">Estado del producto</label>
+    <select id="cond">
+      <option>New with tags</option>
+      <option>New without tags</option>
+      <option>Pre-owned - Like new</option>
+      <option selected>Pre-owned - Good</option>
+      <option>Pre-owned - Acceptable</option>
+      <option>For parts or not working</option>
+    </select>
+    <label class="lbl" style="margin-top:14px">Notas extra (opcional)</label>
+    <textarea id="notes" rows="2" placeholder="Ej.: talla M, falta un botón, viene con caja original…"></textarea>
+  </section>
+
+  <div class="fadeUp" style="margin-top:18px">
+    <button class="gen" id="btnGen" disabled>✨ Generar listado</button>
+  </div>
+
+  <div id="errBox"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+const MAX = 16;
+let images = []; // {id, dataUrl, mediaType}
+let listing = null;
+let editing = false;
+
+const $ = (id) => document.getElementById(id);
+
+// ---- Compresión de imágenes ----
+function compress(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const max=1024; let {width,height}=img;
+        if(width>height && width>max){height=height*max/width;width=max;}
+        else if(height>max){width=width*max/height;height=max;}
+        const c=document.createElement('canvas');
+        c.width=width;c.height=height;
+        c.getContext('2d').drawImage(img,0,0,width,height);
+        resolve({dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'});
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addFiles(fileList){
+  for(const file of Array.from(fileList)){
+    if(!file.type.startsWith('image/')) continue;
+    if(images.length>=MAX) break;
+    const {dataUrl,mediaType}=await compress(file);
+    images.push({id:crypto.randomUUID(),dataUrl,mediaType});
+  }
+  renderThumbs();
+}
+
+function renderThumbs(){
+  const box=$('thumbs');
+  box.innerHTML='';
+  images.forEach((img)=>{
+    const d=document.createElement('div');
+    d.className='thumb';
+    d.innerHTML=`<img src="${img.dataUrl}"><button data-id="${img.id}">✕</button>`;
+    box.appendChild(d);
+  });
+  box.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{ images=images.filter(i=>i.id!==b.dataset.id); renderThumbs(); };
+  });
+  $('count').textContent=images.length;
+  $('btnGen').disabled = images.length===0;
+}
+
+$('btnCam').onclick=()=>$('inCam').click();
+$('btnGal').onclick=()=>$('inGal').click();
+$('inCam').onchange=(e)=>addFiles(e.target.files);
+$('inGal').onchange=(e)=>addFiles(e.target.files);
+
+// ---- Generar ----
+$('btnGen').onclick=async ()=>{
+  if(images.length===0) return;
+  const btn=$('btnGen');
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Analizando fotos…';
+  $('errBox').innerHTML='';
+  $('result').innerHTML='';
+
+  try{
+    const res=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        images: images.map(i=>({data:i.dataUrl.split(',')[1], mediaType:i.mediaType})),
+        condition: $('cond').value,
+        extraNotes: $('notes').value,
+      }),
+    });
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
+    listing=data;
+    editing=false;
+    renderResult();
+  }catch(err){
+    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo generar</strong><p>${err.message}</p></div></div>`;
+  }finally{
+    btn.disabled=images.length===0;
+    btn.innerHTML='✨ Generar listado';
+  }
+};
+
+// ---- Texto plano del listado ----
+function buildText(l){
+  const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
+  const kw=(l.keywords||[]).join(', ');
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${l.description||''}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
+}
+
+// ---- Render del resultado ----
+function renderResult(){
+  const l=listing;
+  if(!l){$('result').innerHTML='';return;}
+  const tlen=(l.title||'').length;
+  const specsHtml=(l.item_specifics||[]).map((s,i)=>
+    editing
+    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
+    : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
+  ).join('');
+  const kwHtml=(l.keywords||[]).map(k=>`<span class="chip">${k}</span>`).join(' ');
+
+  $('result').innerHTML=`
+    <section class="fadeUp" style="margin-top:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2>Tu listado</h2>
+        <button class="ed ${editing?'on':''}" id="btnEdit">✏️ ${editing?'Listo':'Editar'}</button>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div class="field-h ${tlen>80?'warn':''}">🏷️ Título (${tlen}/80)</div>
+          ${editing?`<input class="edin" id="edTitle" value="${(l.title||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:16px;font-weight:600;line-height:1.35">${l.title||''}</p>`}
+        </div>
+        <div>
+          <div class="field-h">📁 Categoría</div>
+          ${editing?`<input class="edin" id="edCat" value="${(l.category||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:14.5px">${l.category||''}</p>`}
+        </div>
+        ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
+        <div>
+          <div class="field-h">📝 Descripción</div>
+          ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
+        </div>
+        ${kwHtml?`<div><div class="field-h">🔍 Keywords (theme)</div><div style="display:flex;flex-wrap:wrap;gap:6px">${kwHtml}</div></div>`:''}
+        <div>
+          <div class="field-h">💲 Precio sugerido</div>
+          <p style="margin:0;font-size:18px;font-weight:700;color:var(--sage)">$${l.price_min} – $${l.price_max} <span style="font-size:13px;color:var(--muted);font-weight:500">USD</span></p>
+        </div>
+      </div>
+      <div class="resbtns">
+        <button class="primary" id="btnCopy">📋 Copiar todo</button>
+        <button class="ghost" id="btnShare">🔗 Compartir</button>
+        <button class="ghost" id="btnDl">⬇️ Descargar</button>
+        <button class="ghost" id="btnNew">🔄 Nuevo</button>
+      </div>
+    </section>`;
+
+  // Listeners del resultado
+  $('btnEdit').onclick=()=>{ saveEdits(); editing=!editing; renderResult(); };
+  $('btnCopy').onclick=copyAll;
+  $('btnShare').onclick=shareIt;
+  $('btnDl').onclick=download;
+  $('btnNew').onclick=resetAll;
+}
+
+function saveEdits(){
+  if(!editing) return;
+  const t=$('edTitle'); if(t) listing.title=t.value;
+  const c=$('edCat'); if(c) listing.category=c.value;
+  const d=$('edDesc'); if(d) listing.description=d.value;
+  document.querySelectorAll('[data-spec]').forEach(inp=>{
+    listing.item_specifics[+inp.dataset.spec].value=inp.value;
+  });
+}
+
+async function copyAll(){
+  saveEdits();
+  const txt=buildText(listing);
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta); }
+  const b=$('btnCopy'); b.innerHTML='✅ Copiado'; setTimeout(()=>b.innerHTML='📋 Copiar todo',1800);
+}
+async function shareIt(){
+  saveEdits();
+  const txt=buildText(listing);
+  if(navigator.share){ try{ await navigator.share({title:listing.title,text:txt}); }catch{} }
+  else copyAll();
+}
+function download(){
+  saveEdits();
+  const txt=buildText(listing);
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const safe=(listing.title||'listado').slice(0,40).replace(/[^\w]+/g,'-');
+  a.href=url;a.download=safe+'.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function resetAll(){
+  images=[];listing=null;editing=false;
+  $('notes').value='';
+  renderThumbs();renderResult();$('errBox').innerHTML='';
+}
+</script>
+</body>
+</html>
