@@ -52,6 +52,18 @@
   .ed.on{background:var(--ink);color:#fff;}
   .edin{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;outline:none;color:var(--ink);background:var(--paper);font-family:var(--body);}
   h2{font-family:var(--display);font-size:22px;font-weight:600;margin:0;}
+  /* Bloque de notas (referencia + notas fijas) */
+  .notesblock{background:var(--amber-soft);border:1px solid #f4d9c4;border-radius:12px;padding:13px 14px;}
+  .notesblock p{margin:0;font-size:14px;line-height:1.55;white-space:pre-wrap;color:#5c3a22;}
+  .detected{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:500;color:var(--ink);margin-bottom:9px;}
+  /* Ajustes */
+  .settings-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;border:none;background:transparent;cursor:pointer;font-family:var(--body);font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;padding:0;}
+  .set-row{margin-top:12px;}
+  .set-row label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:5px;}
+  .set-row textarea{font-size:13.5px;}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .seg button{border:none;background:#fff;color:var(--muted);padding:7px 13px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:var(--body);}
+  .seg button.on{background:var(--ink);color:#fff;}
 </style>
 </head>
 <body>
@@ -96,6 +108,33 @@
 
   <div id="errBox"></div>
   <div id="result"></div>
+
+  <!-- AJUSTES (textos fijos editables) -->
+  <section class="card fadeUp" style="margin-top:18px">
+    <button class="settings-toggle" id="setToggle">
+      <span>⚙️ Ajustes de notas fijas</span>
+      <span id="setArrow">▾</span>
+    </button>
+    <div id="setBody" style="display:none">
+      <p class="hint" style="margin-top:6px">Estos textos se añaden automáticamente arriba de la descripción. Edítalos a tu gusto; se guardan en este dispositivo.</p>
+      <div class="set-row">
+        <label>📸 Pin si la prenda está en MANIQUÍ (usa {item} para el tipo de prenda)</label>
+        <textarea id="setMannequin" rows="2"></textarea>
+      </div>
+      <div class="set-row">
+        <label>📸 Pin si la prenda está en GANCHO / PERCHA (usa {item})</label>
+        <textarea id="setHanger" rows="2"></textarea>
+      </div>
+      <div class="set-row">
+        <label>🧺 Notas fijas (color, medidas, envío, lavado). Usa {emoji} y {item}</label>
+        <textarea id="setFixed" rows="6"></textarea>
+      </div>
+      <div class="set-row" style="display:flex;gap:10px;margin-top:14px">
+        <button class="primary" id="setSave" style="flex:1">💾 Guardar</button>
+        <button class="ghost" id="setReset" style="flex:1">↩️ Restaurar</button>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -105,6 +144,40 @@ let listing = null;
 let editing = false;
 
 const $ = (id) => document.getElementById(id);
+
+// ---- Catálogo de prendas con emoji (clave en inglés) ----
+const GARMENTS = {
+  blouse:   {emoji:'👚', es:'blusa',         en:'blouse'},
+  shorts:   {emoji:'🩳', es:'short',         en:'shorts'},
+  dress:    {emoji:'👗', es:'vestido',       en:'dress'},
+  pants:    {emoji:'👖', es:'pantalón',      en:'pants'},
+  shoes:    {emoji:'👟', es:'zapatos',       en:'shoes'},
+  sweater:  {emoji:'🧥', es:'suéter',        en:'sweater'},
+  bra:      {emoji:'👙', es:'brasier',       en:'bra'},
+  swimsuit: {emoji:'🩱', es:'traje de baño', en:'swimsuit'},
+  bag:      {emoji:'👜', es:'bolsa',         en:'bag'},
+};
+
+// ---- Notas fijas por defecto (editables en Ajustes) ----
+const DEFAULT_NOTES = {
+  mannequin: "📌 Reference images: the actual {item} is the same as shown in the mannequin photos.",
+  hanger: "📌 Reference images: the actual {item} is the same as shown in the photos on the hanger.",
+  fixed:
+`{emoji} This {item} is pre-owned in good condition.
+📸 Color may vary slightly depending on lighting and screen.
+📏 Measurements are taken laid flat; please compare with your own garment.
+🚚 Ships the next business day after payment.
+🧼 Item was only steamed; we recommend washing before wear.`
+};
+
+function getNotes(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('ebayNotes')||'null');
+    if(saved && saved.mannequin && saved.hanger && saved.fixed) return saved;
+  }catch{}
+  return {...DEFAULT_NOTES};
+}
+function saveNotes(n){ try{ localStorage.setItem('ebayNotes', JSON.stringify(n)); }catch{} }
 
 // ---- Compresión de imágenes ----
 function compress(file){
@@ -190,11 +263,26 @@ $('btnGen').onclick=async ()=>{
   }
 };
 
-// ---- Texto plano del listado ----
+// ---- Construir el bloque de notas fijas según prenda detectada ----
+function buildNotesBlock(l){
+  const notes=getNotes();
+  const g = GARMENTS[l.garment] || null;
+  const emoji = g ? g.emoji : '🏷️';
+  const itemEn = g ? g.en : 'item';
+  const pin = (l.display==='mannequin') ? notes.mannequin : notes.hanger;
+  const filled = (txt)=> (txt||'')
+      .replaceAll('{emoji}', emoji)
+      .replaceAll('{item}', itemEn);
+  return filled(pin) + "\n\n" + filled(notes.fixed);
+}
+
+// ---- Texto plano del listado (notas arriba, igual que en eBay) ----
 function buildText(l){
   const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
   const kw=(l.keywords||[]).join(', ');
-  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${l.description||''}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
+  const notesBlock=buildNotesBlock(l);
+  const fullDesc = notesBlock + "\n\n" + (l.description||'');
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${fullDesc}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
 }
 
 // ---- Render del resultado ----
@@ -202,6 +290,11 @@ function renderResult(){
   const l=listing;
   if(!l){$('result').innerHTML='';return;}
   const tlen=(l.title||'').length;
+  const g = GARMENTS[l.garment] || null;
+  const detectedLabel = g ? `${g.emoji} ${g.es}` : '🏷️ prenda';
+  const displayLabel = (l.display==='mannequin') ? '🧍 Maniquí' : '🪝 Gancho';
+  const notesBlock=buildNotesBlock(l);
+
   const specsHtml=(l.item_specifics||[]).map((s,i)=>
     editing
     ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
@@ -227,6 +320,11 @@ function renderResult(){
         ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
         <div>
           <div class="field-h">📝 Descripción</div>
+          <div style="display:flex;gap:8px;margin-bottom:9px">
+            <span class="detected">Detectado: ${detectedLabel}</span>
+            <span class="detected">${displayLabel}</span>
+          </div>
+          <div class="notesblock" style="margin-bottom:10px"><p>${notesBlock.replace(/</g,'&lt;')}</p></div>
           ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
         </div>
         ${kwHtml?`<div><div class="field-h">🔍 Keywords (theme)</div><div style="display:flex;flex-wrap:wrap;gap:6px">${kwHtml}</div></div>`:''}
@@ -301,6 +399,37 @@ function resetAll(){
   renderThumbs();renderResult();$('errBox').innerHTML='';
   window.scrollTo({top:0,behavior:'smooth'});
 }
+
+// ---- AJUSTES ----
+function loadSettingsUI(){
+  const n=getNotes();
+  $('setMannequin').value=n.mannequin;
+  $('setHanger').value=n.hanger;
+  $('setFixed').value=n.fixed;
+}
+$('setToggle').onclick=()=>{
+  const body=$('setBody');
+  const open = body.style.display==='none';
+  body.style.display = open?'block':'none';
+  $('setArrow').textContent = open?'▴':'▾';
+  if(open) loadSettingsUI();
+};
+$('setSave').onclick=()=>{
+  const n={
+    mannequin:$('setMannequin').value,
+    hanger:$('setHanger').value,
+    fixed:$('setFixed').value,
+  };
+  saveNotes(n);
+  const b=$('setSave'); b.innerHTML='✅ Guardado'; setTimeout(()=>b.innerHTML='💾 Guardar',1600);
+  if(listing) renderResult();
+};
+$('setReset').onclick=()=>{
+  saveNotes({...DEFAULT_NOTES});
+  loadSettingsUI();
+  const b=$('setReset'); b.innerHTML='✅ Restaurado'; setTimeout(()=>b.innerHTML='↩️ Restaurar',1600);
+  if(listing) renderResult();
+};
 </script>
 </body>
 </html>

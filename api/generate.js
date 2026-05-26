@@ -42,6 +42,20 @@ IMPORTANT: Your entire response must be ONLY a single valid JSON object. No text
 
 Analyze these product photos. Read any labels, tags, brand names, size tags and material/care tags you can see. The seller marked the condition as: "${condition || "Pre-owned - Good"}".${extraNotes ? ` Extra notes from seller: "${extraNotes}".` : ""}
 
+DETECT THE GARMENT TYPE: Look at the photos and decide which ONE of these the item is. Return the English key exactly:
+- "blouse" (blouse, top, shirt)
+- "shorts"
+- "dress"
+- "pants" (pants, trousers, jeans, leggings)
+- "shoes" (shoes, sandals, boots, heels, sneakers)
+- "sweater" (sweater, cardigan, jacket, coat, hoodie)
+- "bra" (bra, lingerie)
+- "swimsuit" (swimsuit, bikini)
+- "bag" (bag, purse, handbag)
+If it does not clearly fit any, choose the closest one.
+
+DETECT HOW IT IS DISPLAYED: Decide if the item is photographed on a mannequin/body form ("mannequin") or on a hanger / laid flat / held up ("hanger"). If you cannot tell, use "hanger".
+
 CRITICAL RULE ABOUT SIZE: eBay will block or hide apparel and footwear listings that have missing, incomplete or non-standard size information (this policy is active from July 2026). Therefore the SIZE IS MANDATORY. The title MUST contain the size, and the "Size" item specific MUST be filled. If you genuinely cannot read the size from the photos, use your best expert estimate based on the garment and add "(verify)" after it, and put "Size XX (verify)" in the title. NEVER leave size blank or omit it from the title.
 
 CASSINI TITLE STRATEGY: Use as many of the 80 characters as possible without going over. Front-load the highest-traffic search keywords (what a real buyer would type). Order: Brand + Department (Women's/Men's/Girls'/Boys'/Plus Size) + Item Type + key descriptors (Color, Material, Style, Fit) + Size. Use natural buyer search terms, no punctuation, no filler words like "beautiful" or "nice", no ALL CAPS spam.
@@ -49,6 +63,8 @@ CASSINI TITLE STRATEGY: Use as many of the 80 characters as possible without goi
 Create a complete, ready-to-publish eBay listing as a JSON object with exactly this shape:
 
 {
+  "garment": "one of: blouse|shorts|dress|pants|shoes|sweater|bra|swimsuit|bag",
+  "display": "mannequin|hanger",
   "title": "optimized eBay title in ENGLISH, aim for 70-80 characters, front-load most-searched keywords, MUST include brand + department + item type + color + material/style + SIZE; use Women's/Men's/Plus Size when relevant; NO punctuation, NO filler",
   "category": "suggested eBay category path in English",
   "item_specifics": [
@@ -63,15 +79,15 @@ Create a complete, ready-to-publish eBay listing as a JSON object with exactly t
     {"label": "Pattern", "value": "..."},
     {"label": "Condition", "value": "..."}
   ],
-  "keywords": ["8-12 buyer search keywords in english, no # symbol"],
-  "description": "persuasive sales description in english, 2-3 short paragraphs, mention condition honestly and any flaws",
+  "keywords": ["8-12 buyer search keywords in english based on STYLE and OCCASION, no # symbol"],
+  "description": "persuasive sales description in english, 2-3 short paragraphs, mention condition honestly and any flaws. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
   "price_min": number,
   "price_max": number
 }
 
 For price_min and price_max: estimate the realistic SOLD price range in USD for this item in this condition on eBay, as an experienced reseller would, considering the brand's resale demand, item type and condition. Give a sensible range (not too wide).
 
-If you cannot read a field, give your best expert estimate and add "(verify)" after the value. Keep item_specifics relevant to the actual product. Remember: Size is mandatory and must never be empty.`,
+If you cannot read a field, give your best expert estimate and add "(verify)" after the value. Keep item_specifics relevant to the actual product. Remember: Size is mandatory and must never be empty. The "keywords" must reflect the garment's style and the occasion it suits.`,
     });
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
