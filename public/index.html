@@ -2,405 +2,305 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Listador de eBay</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#e8590c" />
+<title>Listador eBay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#FFF8F0;
-    --bg2:#FFEEF6;
-    --card:#FFFFFF;
-    --ink:#3A2230;
-    --muted:#9B7385;
-    --terra:#FF8A3D;        /* mango principal */
-    --terra-deep:#F2691F;   /* mango intenso */
-    --gold:#FF5DA2;         /* fucsia */
-    --blush:#FFE0EC;        /* fucsia suave */
-    --line:#FBE0D0;
-    --green:#E0418A;
-    --shadow:0 10px 40px rgba(255,93,162,0.13);
+    --ink:#1c1410; --paper:#fbf6ee; --card:#fff; --amber:#e8590c;
+    --amber-soft:#fff0e6; --sage:#3d6b54; --border:#e7ddcf; --muted:#8a7d6c;
+    --display:'Fraunces',Georgia,serif; --body:'Outfit',system-ui,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  body{
-    margin:0;padding:0 0 70px;
-    font-family:'Outfit',system-ui,sans-serif;
-    color:var(--ink);
-    background:
-      radial-gradient(110% 60% at 0% 0%, #FFE9D6 0%, rgba(255,233,214,0) 50%),
-      radial-gradient(120% 70% at 100% 0%, var(--blush) 0%, rgba(255,224,236,0) 55%),
-      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-    background-attachment:fixed;
-    min-height:100vh;
-  }
-  /* HEADER */
-  header{
-    position:sticky;top:0;z-index:20;
-    padding:26px 20px 16px;
-    background:rgba(255,248,240,0.82);
-    backdrop-filter:blur(14px);
-    border-bottom:1px solid var(--line);
-  }
-  .brand{display:flex;align-items:center;gap:13px;}
-  .logo{
-    width:48px;height:48px;border-radius:15px;flex:0 0 auto;
-    background:linear-gradient(140deg,var(--terra),var(--gold));
-    display:grid;place-items:center;font-size:24px;
-    box-shadow:0 8px 22px rgba(194,104,63,0.35);
-  }
-  h1{font-family:'Fraunces',serif;font-weight:600;font-size:25px;margin:0;letter-spacing:-0.02em;}
-  .sub{margin:1px 0 0;font-size:13px;color:var(--muted);}
-  .tabs{display:flex;gap:8px;margin-top:18px;}
-  .tab{
-    border:none;cursor:pointer;padding:9px 17px;border-radius:999px;
-    font-family:'Outfit';font-weight:600;font-size:13.5px;
-    background:transparent;color:var(--muted);transition:.2s;
-  }
-  .tab.active{background:var(--ink);color:#fff;box-shadow:0 6px 16px rgba(51,40,35,0.25);}
-  main{max-width:720px;margin:0 auto;padding:22px 16px;}
-  .card{
-    background:var(--card);border-radius:22px;padding:20px;
-    border:1px solid var(--line);box-shadow:var(--shadow);
-  }
-  h2{font-family:'Fraunces',serif;font-weight:600;font-size:19px;margin:0 0 3px;letter-spacing:-0.01em;}
-  .hint{font-size:13.5px;color:var(--muted);margin:2px 0 15px;line-height:1.5;}
-  /* DROPZONE */
-  .drop{
-    border:2px dashed var(--terra);border-radius:18px;padding:28px 16px;
-    text-align:center;cursor:pointer;background:rgba(243,220,207,0.4);
-    transition:.2s;
-  }
-  .drop:active{transform:scale(0.99);}
-  .drop .ico{font-size:32px;}
-  .drop .big{font-weight:600;margin-top:6px;font-size:15px;}
-  .drop .small{font-size:12.5px;color:var(--muted);margin-top:2px;}
-  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-top:16px;}
-  .thumb{position:relative;}
-  .thumb img{width:100%;height:80px;object-fit:cover;border-radius:13px;border:1px solid var(--line);}
-  .thumb button{
-    position:absolute;top:-7px;right:-7px;width:23px;height:23px;border-radius:50%;
-    border:2px solid #fff;background:var(--terra-deep);color:#fff;cursor:pointer;
-    font-size:13px;line-height:1;display:grid;place-items:center;padding:0;
-    box-shadow:0 2px 6px rgba(0,0,0,.2);
-  }
-  .btn-go{
-    margin-top:18px;width:100%;padding:16px;border-radius:15px;border:none;cursor:pointer;
-    background:linear-gradient(135deg,var(--terra),var(--terra-deep));color:#fff;
-    font-family:'Outfit';font-weight:700;font-size:16px;letter-spacing:.01em;
-    box-shadow:0 10px 26px rgba(156,78,44,0.35);transition:.15s;
-  }
-  .btn-go:active{transform:translateY(1px);}
-  .btn-go:disabled{background:var(--blush);color:var(--muted);box-shadow:none;cursor:default;}
-  .err{color:var(--terra-deep);font-size:13.5px;margin-top:12px;line-height:1.5;}
-  /* RESULT */
-  .stack{margin-top:20px;display:grid;gap:15px;}
-  .badges{display:flex;gap:8px;flex-wrap:wrap;}
-  .badge{background:var(--blush);color:var(--terra-deep);padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;}
-  .rcard{background:var(--card);border-radius:18px;padding:17px;border:1px solid var(--line);box-shadow:var(--shadow);}
-  .rhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;}
-  .rhead h3{font-family:'Fraunces',serif;font-weight:600;font-size:15.5px;margin:0;}
-  .copy{
-    border:none;cursor:pointer;background:var(--ink);color:#fff;padding:8px 15px;border-radius:11px;
-    font-size:12.5px;font-weight:600;font-family:'Outfit';white-space:nowrap;transition:.2s;
-  }
-  .copy.done{background:var(--green);}
-  .title-txt{margin:0;font-weight:600;font-size:15.5px;line-height:1.4;}
-  .charcount{margin:7px 0 0;font-size:12px;color:var(--muted);}
-  pre{margin:0;white-space:pre-wrap;font-family:'Outfit';font-size:14px;line-height:1.62;}
-  .spec-group{margin-bottom:14px;}
-  .spec-label{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gold);margin-bottom:5px;}
-  .spec-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
-  .spec-row .k{color:var(--muted);}
-  .spec-row .v{text-align:right;font-weight:600;}
-  .spec-row .v.empty{color:#CDBBAE;font-weight:400;}
-  ul.theme{margin:0;padding-left:19px;line-height:1.75;}
-  ul.theme li{font-size:14.5px;}
-  /* AJUSTES */
-  label.fld{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--terra-deep);}
-  textarea{
-    width:100%;border-radius:13px;border:1px solid var(--line);padding:11px 13px;
-    font-family:'Outfit';font-size:13.5px;resize:vertical;background:var(--bg);color:var(--ink);
-  }
-  textarea:focus{outline:2px solid var(--blush);border-color:var(--terra);}
-  .field{margin-bottom:16px;}
-  .reset{
-    border:1px solid var(--line);background:transparent;color:var(--muted);padding:11px 17px;
-    border-radius:12px;cursor:pointer;font-family:'Outfit';font-weight:600;font-size:13px;
-  }
-  code{background:var(--blush);padding:1px 6px;border-radius:6px;font-size:12px;}
-  .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:7px;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .hidden{display:none;}
+  body{margin:0;background:var(--paper);font-family:var(--body);color:var(--ink);}
+  .wrap{max-width:540px;margin:0 auto;padding:22px 18px 60px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .fadeUp{animation:fadeUp .4s ease both;}
+  header{display:flex;align-items:center;gap:9px;margin-bottom:22px;}
+  .logo{width:38px;height:38px;border-radius:11px;background:var(--amber);display:grid;place-items:center;box-shadow:0 6px 16px rgba(232,89,12,.27);color:#fff;font-size:20px;}
+  h1{font-family:var(--display);font-size:25px;font-weight:700;margin:0;line-height:1;}
+  .sub{margin:3px 0 0;font-size:13px;color:var(--muted);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;}
+  .lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.02em;text-transform:uppercase;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+  .thumb img{width:100%;height:100%;object-fit:cover;}
+  .thumb button{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;cursor:pointer;}
+  .act{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:16px 12px;font-size:15px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;font-family:var(--body);}
+  .hint{margin:10px 2px 0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  select,textarea,input{font-family:var(--body);}
+  select{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);background:var(--paper);}
+  textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;resize:vertical;color:var(--ink);background:var(--paper);}
+  .gen{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:600;color:#fff;background:var(--amber);box-shadow:0 10px 24px rgba(232,89,12,.28);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;font-family:var(--body);}
+  .gen:disabled{background:#d8cdbd;box-shadow:none;cursor:default;}
+  .err{margin-top:16px;background:#fff4f0;border:1px solid #ffd3c2;border-radius:14px;padding:14px;display:flex;gap:10px;align-items:flex-start;}
+  .err strong{font-size:14px;color:#9c2a14;}
+  .err p{margin:3px 0 0;font-size:13.5px;color:#8a4030;}
+  .field-h{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .field-h.warn{color:#c0341a;}
+  .chip{background:var(--amber-soft);color:#b8430a;border-radius:8px;padding:4px 9px;font-size:13px;font-weight:500;}
+  .spec{display:flex;gap:8px;font-size:14px;align-items:baseline;}
+  .spec .k{color:var(--muted);min-width:96px;font-weight:500;}
+  .resbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+  .primary{border:none;background:var(--ink);color:#fff;border-radius:14px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
+  .ghost{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:14px;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
+  .ed{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:10px;padding:7px 12px;font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--body);}
+  .ed.on{background:var(--ink);color:#fff;}
+  .edin{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;outline:none;color:var(--ink);background:var(--paper);font-family:var(--body);}
+  h2{font-family:var(--display);font-size:22px;font-weight:600;margin:0;}
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <div class="logo">🧵</div>
+<div class="wrap">
+  <header>
+    <div class="logo">🏷️</div>
     <div>
-      <h1>Listador de eBay</h1>
-      <p class="sub">De foto a listado completo en segundos</p>
+      <h1>Listador eBay</h1>
+      <p class="sub">Sube fotos · obtén el listado optimizado</p>
     </div>
-  </div>
-  <div class="tabs">
-    <button class="tab active" id="tab-crear">Crear listado</button>
-    <button class="tab" id="tab-ajustes">Ajustes de notas</button>
-  </div>
-</header>
+  </header>
 
-<main>
-  <!-- ===== CREAR ===== -->
-  <div id="view-crear">
-    <section class="card">
-      <h2>1 · Sube las fotos</h2>
-      <p class="hint">Incluye la foto de la etiqueta para rellenar marca, talla y material. La IA solo llena lo que ve, nunca inventa.</p>
-      <div class="drop" id="drop">
-        <div class="ico">📷</div>
-        <div class="big">Toca para añadir fotos</div>
-        <div class="small">Puedes subir varias a la vez</div>
-      </div>
-      <input type="file" id="file" accept="image/*" multiple class="hidden" />
-      <div class="thumbs" id="thumbs"></div>
-      <button class="btn-go" id="go">✨ Generar listado</button>
-      <p class="err hidden" id="err"></p>
-    </section>
-    <div class="stack hidden" id="result"></div>
+  <section class="card fadeUp">
+    <label class="lbl">Fotos del producto (<span id="count">0</span>/16)</label>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="grid2">
+      <button class="act" id="btnCam">📷<span>Cámara</span></button>
+      <button class="act" id="btnGal">⬆️<span>Galería</span></button>
+    </div>
+    <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
+    <input id="inGal" type="file" accept="image/*" multiple hidden>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16.</p>
+  </section>
+
+  <section class="card fadeUp" style="margin-top:16px">
+    <label class="lbl">Estado del producto</label>
+    <select id="cond">
+      <option>New with tags</option>
+      <option>New without tags</option>
+      <option>Pre-owned - Like new</option>
+      <option selected>Pre-owned - Good</option>
+      <option>Pre-owned - Acceptable</option>
+      <option>For parts or not working</option>
+    </select>
+    <label class="lbl" style="margin-top:14px">Notas extra (opcional)</label>
+    <textarea id="notes" rows="2" placeholder="Ej.: talla M, falta un botón, viene con caja original…"></textarea>
+  </section>
+
+  <div class="fadeUp" style="margin-top:18px">
+    <button class="gen" id="btnGen" disabled>✨ Generar listado</button>
   </div>
 
-  <!-- ===== AJUSTES ===== -->
-  <div id="view-ajustes" class="hidden">
-    <section class="card">
-      <h2>Edita tus notas fijas</h2>
-      <p class="hint">Usa <code>{item}</code> donde quieras que aparezca el tipo de prenda (blouse, dress…). Los cambios se guardan en este dispositivo y se aplican al generar.</p>
-      <div id="notes-fields"></div>
-      <button class="reset" id="reset">Restaurar textos por defecto</button>
-    </section>
-  </div>
-</main>
+  <div id="errBox"></div>
+  <div id="result"></div>
+</div>
 
 <script>
-// ---------- Datos ----------
-const DEFAULT_NOTES = {
-  mannequin:"📌 Note: Images are for reference only to demonstrate fit and style. The actual {item} is the same as shown in the mannequin photos. Slight variations in color or details may occur due to lighting and screen settings.",
-  hanger:"📌 Note: Images are for reference only to show fit and style. The actual {item} is the same as shown in the photos on the hanger. Slight variations in color or details may occur due to lighting and screen settings.",
-  color:"📸 The color may vary slightly due to lighting and photography.",
-  measure:"📏 Measurements were taken with the garment laid out flat on a surface. It's recommended to compare with a similar garment to ensure the desired fit.",
-  shipping:"🚚 Ships next business day after payment.",
-  wash:"🧼 The clothing was only steamed, so it may need to be washed before use."
-};
-const GARMENTS = {
-  blouse:{emoji:"👚",es:"Blusa",en:"blouse"}, shorts:{emoji:"🩳",es:"Short",en:"shorts"},
-  dress:{emoji:"👗",es:"Vestido",en:"dress"}, pants:{emoji:"👖",es:"Pantalón",en:"pants"},
-  shoes:{emoji:"👟",es:"Zapatos",en:"shoes"}, sweater:{emoji:"🧥",es:"Suéter",en:"sweater"},
-  bra:{emoji:"👙",es:"Brasier",en:"bra"}, swimsuit:{emoji:"🩱",es:"Traje de baño",en:"swimsuit"},
-  bag:{emoji:"👜",es:"Bolsa",en:"bag"}
-};
-const SPEC_FIELDS = {
-  Obligatorio:["Brand","Size Type","Size","Color","Department","Style"],
-  Recomendadas:["Type","Material","Fit","Occasion","Pattern","Features","Closure","Accents","Season","Sleeve Length","Neckline","Fabric Type"],
-  Adicionales:["Rise","Model","Front Type","Leg Style","Fabric Weight","Garment Care","Inseam","Waist Size","Vintage","Country/Region of Manufacture"]
-};
-const NOTE_LABELS = [
-  ["mannequin","Pin — foto en maniquí"],["hanger","Pin — foto en gancho"],
-  ["color","Nota de color"],["measure","Nota de medidas"],
-  ["shipping","Nota de envío"],["wash","Nota de lavado"]
-];
+const MAX = 16;
+let images = []; // {id, dataUrl, mediaType}
+let listing = null;
+let editing = false;
 
-// ---------- Estado ----------
-let images = [];
-let notes = loadNotes();
-let result = null;
+const $ = (id) => document.getElementById(id);
 
-function loadNotes(){
-  try{ const s = localStorage.getItem("ebay_notes"); if(s) return {...DEFAULT_NOTES, ...JSON.parse(s)}; }catch(e){}
-  return {...DEFAULT_NOTES};
-}
-function saveNotes(){ try{ localStorage.setItem("ebay_notes", JSON.stringify(notes)); }catch(e){} }
-
-// ---------- Tabs ----------
-const tabCrear=document.getElementById("tab-crear"), tabAjustes=document.getElementById("tab-ajustes");
-const viewCrear=document.getElementById("view-crear"), viewAjustes=document.getElementById("view-ajustes");
-tabCrear.onclick=()=>{tabCrear.classList.add("active");tabAjustes.classList.remove("active");viewCrear.classList.remove("hidden");viewAjustes.classList.add("hidden");};
-tabAjustes.onclick=()=>{tabAjustes.classList.add("active");tabCrear.classList.remove("active");viewAjustes.classList.remove("hidden");viewCrear.classList.add("hidden");};
-
-// ---------- Subir fotos ----------
-const fileInput=document.getElementById("file"), drop=document.getElementById("drop"), thumbs=document.getElementById("thumbs");
-drop.onclick=()=>fileInput.click();
-fileInput.onchange=(e)=>{
-  const files=Array.from(e.target.files||[]);
-  files.forEach(file=>{
-    if(!file.type.startsWith("image/"))return;
-    compressImage(file).then(({dataUrl,base64})=>{
-      images.push({id:file.name+Date.now()+Math.random(),dataUrl,base64,mediaType:"image/jpeg"});
-      renderThumbs();
-    });
-  });
-  e.target.value="";
-};
-
-// Encoge y comprime cada foto antes de enviarla (evita el error 413 "demasiado grande")
-function compressImage(file){
+// ---- Compresión de imágenes ----
+function compress(file){
   return new Promise((resolve)=>{
-    const reader=new FileReader();
-    reader.onload=()=>{
-      const img=new Image();
-      img.onload=()=>{
-        const MAX=1024; // lado máximo en píxeles
-        let {width,height}=img;
-        if(width>height && width>MAX){height=Math.round(height*MAX/width);width=MAX;}
-        else if(height>MAX){width=Math.round(width*MAX/height);height=MAX;}
-        const canvas=document.createElement("canvas");
-        canvas.width=width; canvas.height=height;
-        canvas.getContext("2d").drawImage(img,0,0,width,height);
-        const dataUrl=canvas.toDataURL("image/jpeg",0.7); // calidad 70%
-        resolve({dataUrl,base64:dataUrl.split(",")[1]});
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const max=1024; let {width,height}=img;
+        if(width>height && width>max){height=height*max/width;width=max;}
+        else if(height>max){width=width*max/height;height=max;}
+        const c=document.createElement('canvas');
+        c.width=width;c.height=height;
+        c.getContext('2d').drawImage(img,0,0,width,height);
+        resolve({dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'});
       };
-      img.src=reader.result;
+      img.src=e.target.result;
     };
     reader.readAsDataURL(file);
   });
 }
+
+async function addFiles(fileList){
+  for(const file of Array.from(fileList)){
+    if(!file.type.startsWith('image/')) continue;
+    if(images.length>=MAX) break;
+    const {dataUrl,mediaType}=await compress(file);
+    images.push({id:crypto.randomUUID(),dataUrl,mediaType});
+  }
+  renderThumbs();
+}
+
 function renderThumbs(){
-  thumbs.innerHTML="";
-  images.forEach(im=>{
-    const d=document.createElement("div");d.className="thumb";
-    d.innerHTML=`<img src="${im.dataUrl}"/><button data-id="${im.id}">×</button>`;
-    d.querySelector("button").onclick=()=>{images=images.filter(x=>x.id!==im.id);renderThumbs();};
-    thumbs.appendChild(d);
+  const box=$('thumbs');
+  box.innerHTML='';
+  images.forEach((img)=>{
+    const d=document.createElement('div');
+    d.className='thumb';
+    d.innerHTML=`<img src="${img.dataUrl}"><button data-id="${img.id}">✕</button>`;
+    box.appendChild(d);
   });
+  box.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{ images=images.filter(i=>i.id!==b.dataset.id); renderThumbs(); };
+  });
+  $('count').textContent=images.length;
+  $('btnGen').disabled = images.length===0;
 }
 
-// ---------- Generar ----------
-const go=document.getElementById("go"), errEl=document.getElementById("err"), resultEl=document.getElementById("result");
-go.onclick=async()=>{
-  errEl.classList.add("hidden");
-  if(images.length===0){showErr("Sube al menos una foto de la prenda.");return;}
-  go.disabled=true; go.innerHTML='<span class="spinner"></span>Analizando fotos…';
-  resultEl.classList.add("hidden");
+$('btnCam').onclick=()=>$('inCam').click();
+$('btnGal').onclick=()=>$('inGal').click();
+$('inCam').onchange=(e)=>addFiles(e.target.files);
+$('inGal').onchange=(e)=>addFiles(e.target.files);
 
-  const garmentList=Object.entries(GARMENTS).map(([k,v])=>`${k} (${v.es})`).join(", ");
-  const systemPrompt=`Eres un experto en crear listados de eBay para ropa de mujer de segunda mano. Analizas fotos y devuelves SOLO un objeto JSON válido, sin texto adicional, sin markdown, sin backticks.
-
-REGLA CRÍTICA: NUNCA inventes datos. Rellena un campo SOLO si puedes determinarlo con seguridad a partir de las fotos. Si un dato no es visible o no estás seguro (talla, marca, material exacto, país de origen — que normalmente vienen en la etiqueta), deja el valor como "" (cadena vacía). Es mejor dejar vacío que adivinar.
-
-Tipos de prenda posibles (usa la clave en inglés): ${garmentList}.
-Detecta si la prenda está fotografiada en un maniquí ("mannequin") o en gancho/percha ("hanger"). Si no se distingue, usa "hanger".
-
-Devuelve EXACTAMENTE esta estructura JSON:
-{
- "garment":"blouse|shorts|dress|pants|shoes|sweater|bra|swimsuit|bag",
- "display":"mannequin|hanger",
- "title":"título eBay en inglés, máx 80 caracteres: Marca + Tipo + Color + Estilo + Talla (omite lo que no sepas)",
- "specifics":{"Brand":"","Size Type":"","Size":"","Color":"","Department":"Women","Style":"","Type":"","Material":"","Fit":"","Occasion":"","Pattern":"","Features":"","Closure":"","Accents":"","Season":"","Sleeve Length":"","Neckline":"","Fabric Type":"","Rise":"","Model":"","Front Type":"","Leg Style":"","Fabric Weight":"","Garment Care":"","Inseam":"","Waist Size":"","Vintage":"","Country/Region of Manufacture":""},
- "theme":["palabras theme por ESTILO y OCASIÓN en inglés, ej: Casual, Travel, Workwear, Sporty, Outdoor"],
- "ebayDescription":"descripción breve y atractiva en inglés (2-4 frases), sin las notas fijas"
-}
-Rellena specifics solo con lo que VEAS. Department suele ser "Women". Color sí dedúcelo de la foto.`;
+// ---- Generar ----
+$('btnGen').onclick=async ()=>{
+  if(images.length===0) return;
+  const btn=$('btnGen');
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Analizando fotos…';
+  $('errBox').innerHTML='';
+  $('result').innerHTML='';
 
   try{
-    const resp=await fetch("/api/generate",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({images:images.map(im=>({base64:im.base64,mediaType:im.mediaType})),systemPrompt})
+    const res=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        images: images.map(i=>({data:i.dataUrl.split(',')[1], mediaType:i.mediaType})),
+        condition: $('cond').value,
+        extraNotes: $('notes').value,
+      }),
     });
-    const data=await resp.json();
-    if(data.error){showErr(data.error);return;}
-    const clean=String(data.text||"").replace(/```json|```/g,"").trim();
-    result=JSON.parse(clean);
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
+    listing=data;
+    editing=false;
     renderResult();
-  }catch(e){
-    showErr("Hubo un problema al generar el listado. Revisa tu conexión e inténtalo de nuevo.");
+  }catch(err){
+    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo generar</strong><p>${err.message}</p></div></div>`;
   }finally{
-    go.disabled=false; go.innerHTML="✨ Generar listado";
+    btn.disabled=images.length===0;
+    btn.innerHTML='✨ Generar listado';
   }
 };
-function showErr(m){errEl.textContent=m;errEl.classList.remove("hidden");}
 
-// ---------- Construir textos ----------
-function buildNotesBlock(){
-  const g=GARMENTS[result.garment]||{emoji:"🧺",en:"item"};
-  const pin=(result.display==="mannequin"?notes.mannequin:notes.hanger).replace(/\{item\}/g,g.en);
-  const condition=`${g.emoji} The ${g.en} is used but in good condition.`;
-  return [pin,"",condition,"",notes.color,"",notes.measure,"",notes.shipping,"",notes.wash].join("\n");
+// ---- Texto plano del listado ----
+function buildText(l){
+  const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
+  const kw=(l.keywords||[]).join(', ');
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${l.description||''}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
 }
-function fullDescription(){return buildNotesBlock()+"\n\n"+(result.ebayDescription||"");}
 
-// ---------- Render resultado ----------
+// ---- Render del resultado ----
 function renderResult(){
-  const g=GARMENTS[result.garment]||{emoji:"🧺",es:result.garment};
-  const specs=result.specifics||{};
-  const filledSpecs=Object.entries(specs).filter(([,v])=>v&&String(v).trim()).map(([k,v])=>`${k}: ${v}`).join("\n");
+  const l=listing;
+  if(!l){$('result').innerHTML='';return;}
+  const tlen=(l.title||'').length;
+  const specsHtml=(l.item_specifics||[]).map((s,i)=>
+    editing
+    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
+    : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
+  ).join('');
+  const kwHtml=(l.keywords||[]).map(k=>`<span class="chip">${k}</span>`).join(' ');
 
-  let specsHtml="";
-  for(const [label,fields] of Object.entries(SPEC_FIELDS)){
-    specsHtml+=`<div class="spec-group"><div class="spec-label">${label}</div>`;
-    fields.forEach(f=>{
-      const v=(specs[f]||"").toString().trim();
-      specsHtml+=`<div class="spec-row"><span class="k">${f}</span><span class="v ${v?"":"empty"}">${v||"—"}</span></div>`;
-    });
-    specsHtml+=`</div>`;
-  }
+  $('result').innerHTML=`
+    <section class="fadeUp" style="margin-top:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2>Tu listado</h2>
+        <button class="ed ${editing?'on':''}" id="btnEdit">✏️ ${editing?'Listo':'Editar'}</button>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div class="field-h ${tlen>80?'warn':''}">🏷️ Título (${tlen}/80)</div>
+          ${editing?`<input class="edin" id="edTitle" value="${(l.title||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:16px;font-weight:600;line-height:1.35">${l.title||''}</p>`}
+        </div>
+        <div>
+          <div class="field-h">📁 Categoría</div>
+          ${editing?`<input class="edin" id="edCat" value="${(l.category||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:14.5px">${l.category||''}</p>`}
+        </div>
+        ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
+        <div>
+          <div class="field-h">📝 Descripción</div>
+          ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
+        </div>
+        ${kwHtml?`<div><div class="field-h">🔍 Keywords (theme)</div><div style="display:flex;flex-wrap:wrap;gap:6px">${kwHtml}</div></div>`:''}
+        <div>
+          <div class="field-h">💲 Precio sugerido</div>
+          ${editing
+            ? `<div style="display:flex;align-items:center;gap:8px">
+                 <span style="font-size:16px;font-weight:600;color:var(--sage)">$</span>
+                 <input class="edin" id="edPmin" type="number" inputmode="decimal" value="${l.price_min}" style="width:90px">
+                 <span style="color:var(--muted)">–</span>
+                 <input class="edin" id="edPmax" type="number" inputmode="decimal" value="${l.price_max}" style="width:90px">
+                 <span style="font-size:13px;color:var(--muted)">USD</span>
+               </div>`
+            : `<p style="margin:0;font-size:18px;font-weight:700;color:var(--sage)">$${l.price_min} – $${l.price_max} <span style="font-size:13px;color:var(--muted);font-weight:500">USD</span></p>`}
+        </div>
+      </div>
+      <div class="resbtns">
+        <button class="primary" id="btnCopy">📋 Copiar todo</button>
+        <button class="ghost" id="btnShare">🔗 Compartir</button>
+        <button class="ghost" id="btnDl">⬇️ Descargar</button>
+        <button class="ghost" id="btnNew">🔄 Nuevo</button>
+      </div>
+    </section>`;
 
-  const themeHtml=(result.theme||[]).map(t=>`<li>${t}</li>`).join("");
+  // Listeners del resultado
+  $('btnEdit').onclick=()=>{ saveEdits(); editing=!editing; renderResult(); };
+  $('btnCopy').onclick=copyAll;
+  $('btnShare').onclick=shareIt;
+  $('btnDl').onclick=download;
+  $('btnNew').onclick=resetAll;
+}
 
-  resultEl.innerHTML=`
-    <div class="badges">
-      <span class="badge">${g.emoji} ${g.es}</span>
-      <span class="badge">${result.display==="mannequin"?"🧍 Maniquí":"🪝 Gancho"}</span>
-    </div>
-
-    <div class="rcard">
-      <div class="rhead"><h3>Título</h3><button class="copy" data-c="title">Copiar</button></div>
-      <p class="title-txt">${result.title||""}</p>
-      <p class="charcount">${(result.title||"").length}/80 caracteres</p>
-    </div>
-
-    <div class="rcard">
-      <div class="rhead"><h3>Descripción (notas + eBay)</h3><button class="copy" data-c="desc">Copiar</button></div>
-      <pre>${escapeHtml(fullDescription())}</pre>
-    </div>
-
-    <div class="rcard">
-      <div class="rhead"><h3>Item specifics</h3><button class="copy" data-c="specs">Copiar</button></div>
-      ${specsHtml}
-      <p class="hint" style="margin-bottom:0">Los campos con “—” no se ven en las fotos: complétalos tú (suelen estar en la etiqueta).</p>
-    </div>
-
-    <div class="rcard">
-      <div class="rhead"><h3>Palabras Theme (estilo + ocasión)</h3><button class="copy" data-c="theme">Copiar</button></div>
-      <ul class="theme">${themeHtml}</ul>
-    </div>
-  `;
-  resultEl.classList.remove("hidden");
-
-  // Botones copiar
-  const texts={title:result.title||"",desc:fullDescription(),specs:filledSpecs,theme:(result.theme||[]).join(", ")};
-  resultEl.querySelectorAll(".copy").forEach(btn=>{
-    btn.onclick=async()=>{
-      try{
-        await navigator.clipboard.writeText(texts[btn.dataset.c]);
-        btn.textContent="✓ Copiado";btn.classList.add("done");
-        setTimeout(()=>{btn.textContent="Copiar";btn.classList.remove("done");},1500);
-      }catch(e){}
-    };
+function saveEdits(){
+  if(!editing) return;
+  const t=$('edTitle'); if(t) listing.title=t.value;
+  const c=$('edCat'); if(c) listing.category=c.value;
+  const d=$('edDesc'); if(d) listing.description=d.value;
+  const pmin=$('edPmin'); if(pmin && pmin.value!=='') listing.price_min=Number(pmin.value);
+  const pmax=$('edPmax'); if(pmax && pmax.value!=='') listing.price_max=Number(pmax.value);
+  document.querySelectorAll('[data-spec]').forEach(inp=>{
+    listing.item_specifics[+inp.dataset.spec].value=inp.value;
   });
 }
-function escapeHtml(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
-// ---------- Ajustes ----------
-const notesFields=document.getElementById("notes-fields");
-function renderNotes(){
-  notesFields.innerHTML="";
-  NOTE_LABELS.forEach(([key,label])=>{
-    const big=(key==="mannequin"||key==="hanger"||key==="measure");
-    const d=document.createElement("div");d.className="field";
-    d.innerHTML=`<label class="fld">${label}</label><textarea rows="${big?3:2}" data-k="${key}">${notes[key]}</textarea>`;
-    d.querySelector("textarea").oninput=(e)=>{notes[key]=e.target.value;saveNotes();};
-    notesFields.appendChild(d);
-  });
+async function copyAll(){
+  saveEdits();
+  const txt=buildText(listing);
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta); }
+  const b=$('btnCopy'); b.innerHTML='✅ Copiado'; setTimeout(()=>b.innerHTML='📋 Copiar todo',1800);
 }
-document.getElementById("reset").onclick=()=>{notes={...DEFAULT_NOTES};saveNotes();renderNotes();};
-renderNotes();
+async function shareIt(){
+  saveEdits();
+  const txt=buildText(listing);
+  if(navigator.share){ try{ await navigator.share({title:listing.title,text:txt}); }catch{} }
+  else copyAll();
+}
+function download(){
+  saveEdits();
+  const txt=buildText(listing);
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const safe=(listing.title||'listado').slice(0,40).replace(/[^\w]+/g,'-');
+  a.href=url;a.download=safe+'.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function resetAll(){
+  images=[];listing=null;editing=false;
+  $('notes').value='';
+  $('cond').selectedIndex=3; // vuelve a "Pre-owned - Good"
+  renderThumbs();renderResult();$('errBox').innerHTML='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 </script>
 </body>
 </html>
