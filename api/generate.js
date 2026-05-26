@@ -62,7 +62,16 @@ CASSINI TITLE STRATEGY: Use as many of the 80 characters as possible without goi
 
 ITEM SPECIFICS — FILL AS MANY AS YOU CAN, NEVER INVENT: eBay rewards listings with MANY completed item specifics, so fill EVERY field below that you can determine with confidence from the photos (brand/care tags and the garment itself). This strongly improves Cassini ranking.
 RULE: Only fill a field if you can see it or determine it with real confidence. If you are reasonably sure but not fully certain, fill it and add " (verify)" after the value. If you genuinely cannot tell, OMIT that field entirely from the array — DO NOT GUESS and DO NOT invent values. An omitted field is always better than a made-up one.
-MEASUREMENT-BASED FIELDS — BE EXTRA CAUTIOUS: You CANNOT measure real centimeters or inches from a photo, and length looks different depending on the hanger, the mannequin pose, the camera angle and how the garment is laid out. So for any field that depends on a real measurement — Dress Length (Mini/Short/Knee-Length/Midi/Maxi), Sleeve Length, Inseam, Rise, Heel Height, Band/Cup Size — do NOT state it as a fact unless a tag or label shows it. If you are only estimating it visually, you MUST add " (verify)" after the value (e.g. "Midi (verify)", "Maxi (verify)"). When the visual length is ambiguous between two options (e.g. could be Midi or Maxi), pick the more conservative/shorter one and add " (verify)". The same caution applies to the Style and Type fields when they include a length word (e.g. write "Maxi Dress (verify)" if the maxi length is only a visual guess). NEVER assert a definitive length that you only inferred from the image.
+MEASUREMENT-BASED FIELDS — READ THE TAPE MEASURE FIRST: The seller almost always includes photos with a tape measure (cinta métrica) laid along the garment to show its real length — typically one photo showing the whole garment with the tape running down it, and a close-up photo where the number on the tape is clearly readable at the hem/edge. Your job is to USE that measurement, not guess.
+STEP 1 — Look for a tape measure in the photos. If you can read a number on the tape where the garment ends (e.g. the hem reaches 41 inches), use THAT real measurement.
+STEP 2 — For Dress Length, convert the measured shoulder-to-hem length using this standard eBay table and state the result as a FACT (no "(verify)"):
+   • up to 33 in → Mini
+   • 34–37 in → Knee-Length
+   • 38–44 in → Midi
+   • 45 in and above → Maxi
+   (Apply the analogous logic to other measured fields: Sleeve Length, Inseam, Rise, Heel Height, Band/Cup Size — if the tape shows the number, use it as fact.)
+STEP 3 — ONLY if there is NO readable tape measure in any photo and no measurement on a tag, then you are merely estimating visually: in that case you MUST add " (verify)" after the value (e.g. "Midi (verify)", "Maxi (verify)"), and when ambiguous between two options pick the more conservative/shorter one. The same applies to Style/Type fields that contain a length word (write "Maxi Dress (verify)" only if the length is a pure visual guess).
+NEVER assert a definitive length from the image alone — but DO assert it confidently when the tape measure in the photo shows the number.
 - Country of Origin usually comes from the "Made in ___" line on the brand/care tag.
 - Occasion: where the item would realistically be worn (e.g. Casual, Travel, Workwear, Party/Cocktail, Beach, Vacation).
 - Theme: style/occasion words based on the garment's actual style (e.g. Romantic, Feminine, Cottagecore, Boho, Coastal, Resort, Everyday). Base these on the real style, do not invent unrelated themes.
@@ -89,7 +98,7 @@ Create a complete, ready-to-publish eBay listing as a JSON object with exactly t
     {"label": "Condition", "value": "..."}
   ],
   "keywords": ["8-12 buyer search keywords in english based on STYLE and OCCASION, no # symbol"],
-  "description": "persuasive sales description in ENGLISH. Write 2 to 3 well-developed paragraphs (not one short paragraph): describe the garment, the brand/collection if known, the silhouette/fit, neckline, sleeves, hem, the fabric and how it feels and drapes, the print/color, and concrete occasions where it would be worn. Mention the size and the comfortable fit. State the condition honestly and note any visible flaws. Make it read like a polished, complete eBay description. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
+  "description": "persuasive sales description in ENGLISH, MEDIUM length — like a typical good eBay clothing listing, NOT long. Write ONE single natural paragraph (you decide the exact length, but keep it medium and tight, roughly 4-7 sentences). Cover only the essentials: what the item is, the brand if known, the key style points (silhouette/fit, neckline, sleeves, hem, print/color), the size, and the condition stated honestly with any visible flaws. Do not pad it, do not repeat the item specifics, do not write multiple paragraphs. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
   "price_min": number,
   "price_max": number
 }
