@@ -60,6 +60,14 @@ CRITICAL RULE ABOUT SIZE: eBay will block or hide apparel and footwear listings 
 
 CASSINI TITLE STRATEGY: Use as many of the 80 characters as possible without going over. Front-load the highest-traffic search keywords (what a real buyer would type). Order: Brand + Department (Women's/Men's/Girls'/Boys'/Plus Size) + Item Type + key descriptors (Color, Material, Style, Fit) + Size. Use natural buyer search terms, no punctuation, no filler words like "beautiful" or "nice", no ALL CAPS spam.
 
+ITEM SPECIFICS — FILL AS MANY AS YOU CAN, NEVER INVENT: eBay rewards listings with MANY completed item specifics, so fill EVERY field below that you can determine with confidence from the photos (brand/care tags and the garment itself). This strongly improves Cassini ranking.
+RULE: Only fill a field if you can see it or determine it with real confidence. If you are reasonably sure but not fully certain, fill it and add " (verify)" after the value. If you genuinely cannot tell, OMIT that field entirely from the array — DO NOT GUESS and DO NOT invent values. An omitted field is always better than a made-up one.
+- Country of Origin usually comes from the "Made in ___" line on the brand/care tag.
+- Occasion: where the item would realistically be worn (e.g. Casual, Travel, Workwear, Party/Cocktail, Beach, Vacation).
+- Theme: style/occasion words based on the garment's actual style (e.g. Romantic, Feminine, Cottagecore, Boho, Coastal, Resort, Everyday). Base these on the real style, do not invent unrelated themes.
+- Garment Care comes from the care tag (e.g. Machine Washable, Hand Wash, Dry Clean Only).
+Always include Brand, Department, Type, Size and Condition. Then add every other field below that clearly applies.
+
 Create a complete, ready-to-publish eBay listing as a JSON object with exactly this shape:
 
 {
@@ -80,10 +88,12 @@ Create a complete, ready-to-publish eBay listing as a JSON object with exactly t
     {"label": "Condition", "value": "..."}
   ],
   "keywords": ["8-12 buyer search keywords in english based on STYLE and OCCASION, no # symbol"],
-  "description": "persuasive sales description in english, 2-3 short paragraphs, mention condition honestly and any flaws. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
+  "description": "persuasive sales description in ENGLISH. Write 2 to 3 well-developed paragraphs (not one short paragraph): describe the garment, the brand/collection if known, the silhouette/fit, neckline, sleeves, hem, the fabric and how it feels and drapes, the print/color, and concrete occasions where it would be worn. Mention the size and the comfortable fit. State the condition honestly and note any visible flaws. Make it read like a polished, complete eBay description. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
   "price_min": number,
   "price_max": number
 }
+
+The item_specifics array above is the MINIMUM. ADD as many of these additional labels as you can determine for this exact item (omit any you are unsure of): Neckline, Sleeve Length, Sleeve Type, Dress Length, Closure, Fabric Type, Features, Occasion, Theme, Season, Country of Origin, Vintage, Garment Care, Heel Height (shoes), Department-specific fields. The more accurate specifics, the better — but never invent.
 
 For price_min and price_max: estimate the realistic SOLD price range in USD for this item in this condition on eBay, as an experienced reseller would, considering the brand's resale demand, item type and condition. Give a sensible range (not too wide).
 
@@ -99,7 +109,7 @@ If you cannot read a field, give your best expert estimate and add "(verify)" af
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 2000,
+        max_tokens: 3000,
         messages: [{ role: "user", content }],
       }),
     });

@@ -83,8 +83,8 @@
       <button class="act" id="btnCam">📷<span>Cámara</span></button>
       <button class="act" id="btnGal">⬆️<span>Galería</span></button>
     </div>
-    <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
-    <input id="inGal" type="file" accept="image/*" multiple hidden>
+    <input id="inCam" type="file" accept="image/*,.heic,.heif" capture="environment" hidden>
+    <input id="inGal" type="file" accept="image/*,.heic,.heif" multiple hidden>
     <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16.</p>
   </section>
 
@@ -158,56 +158,106 @@ const GARMENTS = {
   bag:      {emoji:'👜', es:'bolsa',         en:'bag'},
 };
 
+// ---- Orden de campos (item specifics) como los muestra eBay ----
+// Mismo formato para TODAS las prendas. La IA llena los que pueda; el resto
+// se muestran vacíos con "—" para completar a mano (o dejarlos en blanco).
+const SPEC_TEMPLATE = [
+  "Brand","Department","Size Type","Size","Style","Dress Length","Color",
+  "Sleeve Length","Sleeve Type","Pattern","Occasion","Material","Theme","Neckline",
+  "Fabric Type","Character","Vintage","Season","Closure","Accents","Features",
+  "Country of Origin","Handmade","Garment Care","Fabric Weight","UPC","Condition"
+];
+
+// Toma lo que devolvió la IA y lo reordena/completa según la plantilla de eBay.
+// Los campos que la IA no llenó quedan con valor "" para completar a mano.
+function orderedSpecs(l){
+  const got = {};
+  (l.item_specifics||[]).forEach(s=>{ if(s && s.label) got[s.label.toLowerCase()] = s.value||""; });
+  const used = new Set();
+  const result = SPEC_TEMPLATE.map(label=>{
+    used.add(label.toLowerCase());
+    return {label, value: got[label.toLowerCase()] || ""};
+  });
+  // Cualquier campo extra que la IA haya añadido y no esté en la plantilla, lo agregamos al final
+  (l.item_specifics||[]).forEach(s=>{
+    if(s && s.label && !used.has(s.label.toLowerCase())) result.push({label:s.label, value:s.value||""});
+  });
+  return result;
+}
+
 // ---- Notas fijas por defecto (editables en Ajustes) ----
+const NOTES_VERSION = 2; // súbelo si cambias los textos por defecto para forzar refresco
 const DEFAULT_NOTES = {
-  mannequin: "📌 Reference images: the actual {item} is the same as shown in the mannequin photos.",
-  hanger: "📌 Reference images: the actual {item} is the same as shown in the photos on the hanger.",
+  mannequin: "📌 Note: Images are for reference only to demonstrate fit and style. The actual {item} is the same as shown in the mannequin photos. Slight variations in color or details may occur due to lighting and screen settings.",
+  hanger: "📌 Note: Images are for reference only to show fit and style. The actual {item} is the same as shown in the photos on the hanger. Slight variations in color or details may occur due to lighting and screen settings.",
   fixed:
-`{emoji} This {item} is pre-owned in good condition.
-📸 Color may vary slightly depending on lighting and screen.
-📏 Measurements are taken laid flat; please compare with your own garment.
-🚚 Ships the next business day after payment.
-🧼 Item was only steamed; we recommend washing before wear.`
+`{emoji} The {item} is used but in good condition.
+📸 The color may vary slightly due to lighting and photography.
+📏 Measurements were taken with the garment laid out flat on a surface. It's recommended to compare with a similar garment to ensure the desired fit.
+🚚 Ships next business day after payment.
+🧼 The clothing was only steamed, so it may need to be washed before use.`
 };
 
 function getNotes(){
   try{
     const saved = JSON.parse(localStorage.getItem('ebayNotes')||'null');
-    if(saved && saved.mannequin && saved.hanger && saved.fixed) return saved;
+    const ver = Number(localStorage.getItem('ebayNotesVer')||'0');
+    if(saved && saved.mannequin && saved.hanger && saved.fixed && ver>=NOTES_VERSION) return saved;
   }catch{}
+  // No hay notas, o son de una versión vieja: usar las nuevas por defecto y guardarlas
+  saveNotes({...DEFAULT_NOTES});
   return {...DEFAULT_NOTES};
 }
-function saveNotes(n){ try{ localStorage.setItem('ebayNotes', JSON.stringify(n)); }catch{} }
+function saveNotes(n){ try{ localStorage.setItem('ebayNotes', JSON.stringify(n)); localStorage.setItem('ebayNotesVer', String(NOTES_VERSION)); }catch{} }
 
-// ---- Compresión de imágenes ----
-function compress(file){
-  return new Promise((resolve)=>{
-    const reader = new FileReader();
-    reader.onload = (e)=>{
-      const img = new Image();
-      img.onload = ()=>{
-        const max=1024; let {width,height}=img;
-        if(width>height && width>max){height=height*max/width;width=max;}
-        else if(height>max){width=width*max/height;height=max;}
-        const c=document.createElement('canvas');
-        c.width=width;c.height=height;
-        c.getContext('2d').drawImage(img,0,0,width,height);
-        resolve({dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'});
-      };
-      img.src=e.target.result;
-    };
-    reader.readAsDataURL(file);
+// ---- Compresión de imágenes (robusta: HEIC/HEIF, fallbacks, sin colgarse) ----
+function drawToJpeg(source, w, h){
+  const max=1024;
+  if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
+  else if(h>max){ w=Math.round(w*max/h); h=max; }
+  const c=document.createElement('canvas');
+  c.width=w; c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+  ctx.drawImage(source,0,0,w,h);
+  return {dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'};
+}
+function loadViaImageEl(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{ try{ resolve(drawToJpeg(img,img.naturalWidth,img.naturalHeight)); }catch(e){ reject(e); } finally{ URL.revokeObjectURL(url); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('decode-failed')); };
+    img.src=url;
   });
+}
+async function compress(file){
+  if('createImageBitmap' in window){
+    try{
+      const bmp=await createImageBitmap(file);
+      const r=drawToJpeg(bmp,bmp.width,bmp.height);
+      if(bmp.close) bmp.close();
+      return r;
+    }catch(_){ /* cae al fallback */ }
+  }
+  return await loadViaImageEl(file);
 }
 
 async function addFiles(fileList){
+  let skipped=0;
   for(const file of Array.from(fileList)){
-    if(!file.type.startsWith('image/')) continue;
+    if(!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)){ skipped++; continue; }
     if(images.length>=MAX) break;
-    const {dataUrl,mediaType}=await compress(file);
-    images.push({id:crypto.randomUUID(),dataUrl,mediaType});
+    try{
+      const {dataUrl,mediaType}=await compress(file);
+      images.push({id:crypto.randomUUID(),dataUrl,mediaType});
+    }catch(_){ skipped++; }
   }
   renderThumbs();
+  if(skipped>0){
+    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>${skipped} foto(s) no se pudieron añadir</strong><p>Pueden estar dañadas o en un formato no compatible. Las demás sí se cargaron.</p></div></div>`;
+    setTimeout(()=>{ if($('errBox')) $('errBox').innerHTML=''; }, 6000);
+  }
 }
 
 function renderThumbs(){
@@ -253,6 +303,8 @@ $('btnGen').onclick=async ()=>{
     const data=await res.json();
     if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
     listing=data;
+    // Reordenar y completar los item specifics según el orden de eBay para esta prenda
+    listing.item_specifics = orderedSpecs(listing);
     editing=false;
     renderResult();
   }catch(err){
@@ -269,16 +321,26 @@ function buildNotesBlock(l){
   const g = GARMENTS[l.garment] || null;
   const emoji = g ? g.emoji : '🏷️';
   const itemEn = g ? g.en : 'item';
+  const isPlural = /s$/i.test(itemEn) && itemEn.toLowerCase()!=='dress'; // shoes, pants, shorts
   const pin = (l.display==='mannequin') ? notes.mannequin : notes.hanger;
-  const filled = (txt)=> (txt||'')
+  let filled = (txt)=> (txt||'')
       .replaceAll('{emoji}', emoji)
       .replaceAll('{item}', itemEn);
-  return filled(pin) + "\n\n" + filled(notes.fixed);
+  let block = filled(pin) + "\n\n" + filled(notes.fixed);
+  // Concordancia para prendas en plural (p. ej. "shoes are" en vez de "shoes is")
+  if(isPlural){
+    block = block
+      .replace(new RegExp(`(the actual ${itemEn}) is\\b`,'gi'), '$1 are')
+      .replace(new RegExp(`(This ${itemEn}) is\\b`,'gi'), '$1 are');
+  }
+  return block;
 }
 
 // ---- Texto plano del listado (notas arriba, igual que en eBay) ----
 function buildText(l){
-  const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
+  const specs=(l.item_specifics||[])
+    .filter(s=> (s.value||'').trim()!=='') // solo los que tienen valor
+    .map(s=>`${s.label}: ${s.value}`).join('\n');
   const kw=(l.keywords||[]).join(', ');
   const notesBlock=buildNotesBlock(l);
   const fullDesc = notesBlock + "\n\n" + (l.description||'');
@@ -297,8 +359,8 @@ function renderResult(){
 
   const specsHtml=(l.item_specifics||[]).map((s,i)=>
     editing
-    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
-    : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
+    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" placeholder="— completar —" style="font-size:14px;padding:6px 9px"></div>`
+    : `<div class="spec"><span class="k">${s.label}</span><span style="${s.value?'':'color:var(--muted)'}">${s.value||'—'}</span></div>`
   ).join('');
   const kwHtml=(l.keywords||[]).map(k=>`<span class="chip">${k}</span>`).join(' ');
 
