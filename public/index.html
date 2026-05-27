@@ -97,18 +97,119 @@
 
   <div id="errBox"></div>
   <div id="result"></div>
+
+  <section class="card fadeUp" style="margin-top:16px">
+    <button id="btnToggleNotes" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;width:100%;font-family:var(--body);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;font-size:13px">
+      <span>⚙️ Ajustes de notas fijas</span><span id="notesArrow">▾</span>
+    </button>
+    <div id="notesPanel" style="display:none;margin-top:14px">
+      <p class="hint" style="margin-top:0">Estas notas se añaden automáticamente arriba de la descripción de cada listado. Usa {word} para el tipo de prenda (blouse, dress…), {emoji} para su ícono y {isare} para "is/are". Se guardan en este dispositivo.</p>
+
+      <label class="lbl">Línea de condición</label>
+      <textarea id="naCondition" rows="2"></textarea>
+
+      <label class="lbl" style="margin-top:12px">Nota cuando está en maniquí</label>
+      <textarea id="naMannequin" rows="3"></textarea>
+
+      <label class="lbl" style="margin-top:12px">Nota cuando está en gancho / plano</label>
+      <textarea id="naHanger" rows="3"></textarea>
+
+      <label class="lbl" style="margin-top:12px">Notas comunes (una por línea)</label>
+      <textarea id="naCommon" rows="6"></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="primary" id="btnSaveNotes" style="flex:1;min-width:140px">💾 Guardar notas</button>
+        <button class="ghost" id="btnResetNotes" style="flex:1;min-width:140px">↩️ Restaurar por defecto</button>
+      </div>
+      <p id="notesSaved" class="hint" style="color:var(--sage);display:none;margin-bottom:0">✅ Notas guardadas en este dispositivo.</p>
+    </div>
+  </section>
 </div>
 
 <script>
 const MAX = 16;
-let images = []; // {id, dataUrl, mediaType}
+let images = []; // {id, dataUrl, mediaType, file}
 let listing = null;
 let editing = false;
 
 const $ = (id) => document.getElementById(id);
 
+// ====================================================================
+//  NOTAS FIJAS  (bloque que va ARRIBA de la descripción del listado)
+// ====================================================================
+// Si cambias la estructura por defecto, sube NOTES_VERSION para que se
+// actualice en los dispositivos. Lo que el usuario edita se conserva
+// salvo que cambies de versión.
+const NOTES_VERSION = 3;
+
+// Emoji por tipo de prenda (para la línea de condición).
+const GARMENT_EMOJI = {
+  blouse:'👚', shorts:'🩳', dress:'👗', pants:'👖',
+  shoes:'👟', sweater:'🧥', bra:'👙', swimsuit:'👙', bag:'👜'
+};
+// Nombre en inglés que se usa dentro de las frases.
+const GARMENT_WORD = {
+  blouse:'blouse', shorts:'short', dress:'dress', pants:'pants',
+  shoes:'shoes', sweater:'sweater', bra:'bra', swimsuit:'swimsuit', bag:'bag'
+};
+// "shoes" es plural -> usa "are"; el resto usa "is".
+function isAre(g){ return g==='shoes' ? 'are' : 'is'; }
+
+// Plantillas por defecto de las notas fijas. {x} se reemplaza solo.
+const DEFAULT_NOTES = {
+  // Línea de condición (depende de la prenda). {emoji} {word} {isare}
+  condition: '{emoji} The {word} {isare} used but in good condition.',
+  // Nota mannequin / hanger (depende de cómo se fotografió). {word}
+  mannequin: '📌 Note: Images are for reference only to demonstrate fit and style. The actual {word} is the same as shown in the mannequin photos. Slight variations in color or details may occur due to lighting and screen settings.',
+  hanger:    '📌 Note: Images are for reference only to show fit and style. The actual {word} is the same as shown in the photos on the hanger. Slight variations in color or details may occur due to lighting and screen settings.',
+  // Notas comunes a todas las prendas (una por línea).
+  common: [
+    '📸 The color may vary slightly due to lighting and photography.',
+    "📏 Measurements were taken with the garment laid out flat on a surface. It's recommended to compare with a similar garment to ensure the desired fit.",
+    '🚚 Ships next business day after payment.',
+    '🧼 The clothing was only steamed, so it may need to be washed before use.'
+  ]
+};
+
+// Carga las notas guardadas en el dispositivo, o las de fábrica.
+function loadNotes(){
+  try{
+    const raw = localStorage.getItem('fixedNotes');
+    if(raw){
+      const saved = JSON.parse(raw);
+      if(saved && saved.v === NOTES_VERSION && saved.notes) return saved.notes;
+    }
+  }catch{}
+  return JSON.parse(JSON.stringify(DEFAULT_NOTES)); // copia limpia
+}
+function saveNotes(notes){
+  try{ localStorage.setItem('fixedNotes', JSON.stringify({v:NOTES_VERSION, notes})); }catch{}
+}
+let fixedNotes = loadNotes();
+
+// Arma el texto final de las notas fijas para una prenda concreta.
+function buildFixedNotes(garment, display){
+  const g = (garment||'').toLowerCase();
+  const emoji = GARMENT_EMOJI[g] || '🏷️';
+  const word  = GARMENT_WORD[g]  || 'item';
+  const fill = (s)=> (s||'')
+    .replaceAll('{emoji}', emoji)
+    .replaceAll('{word}', word)
+    .replaceAll('{isare}', isAre(g));
+
+  const lines = [];
+  const disp = (display||'hanger').toLowerCase();
+  if(disp==='mannequin' && fixedNotes.mannequin) lines.push(fill(fixedNotes.mannequin));
+  else if(fixedNotes.hanger) lines.push(fill(fixedNotes.hanger));
+  if(fixedNotes.condition) lines.push(fill(fixedNotes.condition));
+  (fixedNotes.common||[]).forEach(c=>{ if(c && c.trim()) lines.push(fill(c)); });
+  return lines.join('\n\n');
+}
+
 // ---- Compresión de imágenes ----
-async function compress(file){
+async function compress(file, maxPx, quality){
+  maxPx = maxPx || 900;
+  quality = quality || 0.72;
   // Si es HEIC/HEIF (formato del iPhone), convertir primero a JPEG.
   const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name||'');
   if(isHeic && typeof heic2any !== 'undefined'){
@@ -126,13 +227,13 @@ async function compress(file){
       const img = new Image();
       img.onerror = ()=>reject(new Error('No se pudo abrir una de las fotos. Intenta con otra.'));
       img.onload = ()=>{
-        const max=1024; let {width,height}=img;
-        if(width>height && width>max){height=height*max/width;width=max;}
-        else if(height>max){width=width*max/height;height=max;}
+        let {width,height}=img;
+        if(width>height && width>maxPx){height=height*maxPx/width;width=maxPx;}
+        else if(height>maxPx){width=width*maxPx/height;height=maxPx;}
         const c=document.createElement('canvas');
-        c.width=width;c.height=height;
-        c.getContext('2d').drawImage(img,0,0,width,height);
-        resolve({dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'});
+        c.width=Math.round(width);c.height=Math.round(height);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        resolve({dataUrl:c.toDataURL('image/jpeg',quality),mediaType:'image/jpeg'});
       };
       img.src=e.target.result;
     };
@@ -147,12 +248,41 @@ async function addFiles(fileList){
     if(images.length>=MAX) break;
     try{
       const {dataUrl,mediaType}=await compress(file);
-      images.push({id:crypto.randomUUID(),dataUrl,mediaType});
+      images.push({id:crypto.randomUUID(),dataUrl,mediaType,file});
     }catch(err){
       $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo añadir una foto</strong><p>${err.message}</p></div></div>`;
     }
   }
   renderThumbs();
+}
+
+// Calcula el tamaño aproximado (bytes) del payload base64 que se enviará.
+function payloadBytes(imgs){
+  return imgs.reduce((sum,i)=>sum + (i.dataUrl.split(',')[1]||'').length*0.75, 0);
+}
+
+// Asegura que el conjunto de fotos quepa bajo el límite del servidor.
+// Si es muy pesado, re-comprime TODAS las fotos a menor tamaño hasta que entre.
+async function fitPayload(){
+  const LIMIT = 3.6 * 1024 * 1024; // margen seguro bajo el ~4.5MB de Vercel
+  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5} ];
+  let working = images.map(i=>({...i}));
+  if(payloadBytes(working) <= LIMIT) return working;
+  for(const s of steps){
+    working = [];
+    for(const img of images){
+      if(img.file){
+        try{
+          const {dataUrl,mediaType}=await compress(img.file, s.px, s.q);
+          working.push({...img,dataUrl,mediaType});
+        }catch{ working.push({...img}); }
+      } else {
+        working.push({...img});
+      }
+    }
+    if(payloadBytes(working) <= LIMIT) return working;
+  }
+  return working; // lo más comprimido posible aunque siga algo grande
 }
 
 function renderThumbs(){
@@ -186,16 +316,22 @@ $('btnGen').onclick=async ()=>{
   $('result').innerHTML='';
 
   try{
+    const toSend = await fitPayload();
     const res=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        images: images.map(i=>({data:i.dataUrl.split(',')[1], mediaType:i.mediaType})),
+        images: toSend.map(i=>({data:i.dataUrl.split(',')[1], mediaType:i.mediaType})),
         condition: $('cond').value,
         extraNotes: $('notes').value,
       }),
     });
-    const data=await res.json();
+    if(res.status===413){
+      throw new Error('Demasiadas fotos para enviar de una vez. Quita algunas (deja las 8–10 más importantes: prenda, etiqueta de marca, talla y la cinta métrica) e intenta de nuevo.');
+    }
+    let data;
+    try{ data=await res.json(); }
+    catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo en un momento.'); }
     if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
     listing=data;
     editing=false;
@@ -212,7 +348,9 @@ $('btnGen').onclick=async ()=>{
 function buildText(l){
   const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
   const kw=(l.keywords||[]).join(', ');
-  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${l.description||''}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
+  const notes=buildFixedNotes(l.garment, l.display);
+  const descBlock = (notes ? notes+'\n\n' : '') + (l.description||'');
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${descBlock}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
 }
 
 // ---- Render del resultado ----
@@ -243,6 +381,7 @@ function renderResult(){
           ${editing?`<input class="edin" id="edCat" value="${(l.category||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:14.5px">${l.category||''}</p>`}
         </div>
         ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
+        ${(()=>{const n=buildFixedNotes(l.garment,l.display);return n?`<div><div class="field-h">📌 Notas fijas (van arriba de la descripción)</div><p style="margin:0;font-size:13.5px;line-height:1.5;white-space:pre-wrap;background:var(--amber-soft);border:1px solid var(--border);border-radius:12px;padding:12px 14px">${n.replace(/</g,'&lt;')}</p></div>`:'';})()}
         <div>
           <div class="field-h">📝 Descripción</div>
           ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
@@ -319,6 +458,44 @@ function resetAll(){
   renderThumbs();renderResult();$('errBox').innerHTML='';
   window.scrollTo({top:0,behavior:'smooth'});
 }
+
+// ---- Ajustes de notas fijas ----
+function fillNotesForm(){
+  $('naCondition').value = fixedNotes.condition || '';
+  $('naMannequin').value = fixedNotes.mannequin || '';
+  $('naHanger').value    = fixedNotes.hanger || '';
+  $('naCommon').value    = (fixedNotes.common || []).join('\n');
+}
+fillNotesForm();
+
+$('btnToggleNotes').onclick=()=>{
+  const p=$('notesPanel');
+  const open = p.style.display==='none';
+  p.style.display = open ? 'block' : 'none';
+  $('notesArrow').textContent = open ? '▴' : '▾';
+};
+
+$('btnSaveNotes').onclick=()=>{
+  fixedNotes = {
+    condition: $('naCondition').value.trim(),
+    mannequin: $('naMannequin').value.trim(),
+    hanger:    $('naHanger').value.trim(),
+    common:    $('naCommon').value.split('\n').map(s=>s.trim()).filter(Boolean)
+  };
+  saveNotes(fixedNotes);
+  const m=$('notesSaved'); m.style.display='block'; setTimeout(()=>m.style.display='none',2200);
+  if(listing) renderResult(); // refleja el cambio si ya hay un listado
+};
+
+$('btnResetNotes').onclick=()=>{
+  fixedNotes = JSON.parse(JSON.stringify(DEFAULT_NOTES));
+  saveNotes(fixedNotes);
+  fillNotesForm();
+  const m=$('notesSaved'); m.textContent='↩️ Notas restauradas a las de fábrica.'; m.style.display='block';
+  setTimeout(()=>{m.style.display='none';m.textContent='✅ Notas guardadas en este dispositivo.';},2200);
+  if(listing) renderResult();
+};
+
 </script>
 </body>
 </html>

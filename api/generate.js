@@ -1,6 +1,13 @@
 // Backend serverless (Vercel). Esta función vive en el servidor, NO en el navegador.
 // Por eso la clave de API nunca se expone y Safari no la bloquea.
 
+// Permite recibir peticiones más grandes (varias fotos en base64).
+export const config = {
+  api: {
+    bodyParser: { sizeLimit: "4.5mb" },
+  },
+};
+
 export default async function handler(req, res) {
   // Permitir solo POST
   if (req.method !== "POST") {
