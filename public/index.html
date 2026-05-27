@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#e8590c" />
 <title>Listador eBay</title>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -52,18 +53,6 @@
   .ed.on{background:var(--ink);color:#fff;}
   .edin{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;outline:none;color:var(--ink);background:var(--paper);font-family:var(--body);}
   h2{font-family:var(--display);font-size:22px;font-weight:600;margin:0;}
-  /* Bloque de notas (referencia + notas fijas) */
-  .notesblock{background:var(--amber-soft);border:1px solid #f4d9c4;border-radius:12px;padding:13px 14px;}
-  .notesblock p{margin:0;font-size:14px;line-height:1.55;white-space:pre-wrap;color:#5c3a22;}
-  .detected{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:500;color:var(--ink);margin-bottom:9px;}
-  /* Ajustes */
-  .settings-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;border:none;background:transparent;cursor:pointer;font-family:var(--body);font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;padding:0;}
-  .set-row{margin-top:12px;}
-  .set-row label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:5px;}
-  .set-row textarea{font-size:13.5px;}
-  .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
-  .seg button{border:none;background:#fff;color:var(--muted);padding:7px 13px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:var(--body);}
-  .seg button.on{background:var(--ink);color:#fff;}
 </style>
 </head>
 <body>
@@ -83,8 +72,8 @@
       <button class="act" id="btnCam">📷<span>Cámara</span></button>
       <button class="act" id="btnGal">⬆️<span>Galería</span></button>
     </div>
-    <input id="inCam" type="file" accept="image/*,.heic,.heif" capture="environment" hidden>
-    <input id="inGal" type="file" accept="image/*,.heic,.heif" multiple hidden>
+    <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
+    <input id="inGal" type="file" accept="image/*" multiple hidden>
     <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16.</p>
   </section>
 
@@ -108,33 +97,6 @@
 
   <div id="errBox"></div>
   <div id="result"></div>
-
-  <!-- AJUSTES (textos fijos editables) -->
-  <section class="card fadeUp" style="margin-top:18px">
-    <button class="settings-toggle" id="setToggle">
-      <span>⚙️ Ajustes de notas fijas</span>
-      <span id="setArrow">▾</span>
-    </button>
-    <div id="setBody" style="display:none">
-      <p class="hint" style="margin-top:6px">Estos textos se añaden automáticamente arriba de la descripción. Edítalos a tu gusto; se guardan en este dispositivo.</p>
-      <div class="set-row">
-        <label>📸 Pin si la prenda está en MANIQUÍ (usa {item} para el tipo de prenda)</label>
-        <textarea id="setMannequin" rows="2"></textarea>
-      </div>
-      <div class="set-row">
-        <label>📸 Pin si la prenda está en GANCHO / PERCHA (usa {item})</label>
-        <textarea id="setHanger" rows="2"></textarea>
-      </div>
-      <div class="set-row">
-        <label>🧺 Notas fijas (color, medidas, envío, lavado). Usa {emoji} y {item}</label>
-        <textarea id="setFixed" rows="6"></textarea>
-      </div>
-      <div class="set-row" style="display:flex;gap:10px;margin-top:14px">
-        <button class="primary" id="setSave" style="flex:1">💾 Guardar</button>
-        <button class="ghost" id="setReset" style="flex:1">↩️ Restaurar</button>
-      </div>
-    </div>
-  </section>
 </div>
 
 <script>
@@ -145,119 +107,52 @@ let editing = false;
 
 const $ = (id) => document.getElementById(id);
 
-// ---- Catálogo de prendas con emoji (clave en inglés) ----
-const GARMENTS = {
-  blouse:   {emoji:'👚', es:'blusa',         en:'blouse'},
-  shorts:   {emoji:'🩳', es:'short',         en:'shorts'},
-  dress:    {emoji:'👗', es:'vestido',       en:'dress'},
-  pants:    {emoji:'👖', es:'pantalón',      en:'pants'},
-  shoes:    {emoji:'👟', es:'zapatos',       en:'shoes'},
-  sweater:  {emoji:'🧥', es:'suéter',        en:'sweater'},
-  bra:      {emoji:'👙', es:'brasier',       en:'bra'},
-  swimsuit: {emoji:'🩱', es:'traje de baño', en:'swimsuit'},
-  bag:      {emoji:'👜', es:'bolsa',         en:'bag'},
-};
-
-// ---- Orden de campos (item specifics) como los muestra eBay ----
-// Mismo formato para TODAS las prendas. La IA llena los que pueda; el resto
-// se muestran vacíos con "—" para completar a mano (o dejarlos en blanco).
-const SPEC_TEMPLATE = [
-  "Brand","Department","Size Type","Size","Style","Dress Length","Color",
-  "Sleeve Length","Sleeve Type","Pattern","Occasion","Material","Theme","Neckline",
-  "Fabric Type","Character","Vintage","Season","Closure","Accents","Features",
-  "Country of Origin","Handmade","Garment Care","Fabric Weight","UPC","Condition"
-];
-
-// Toma lo que devolvió la IA y lo reordena/completa según la plantilla de eBay.
-// Los campos que la IA no llenó quedan con valor "" para completar a mano.
-function orderedSpecs(l){
-  const got = {};
-  (l.item_specifics||[]).forEach(s=>{ if(s && s.label) got[s.label.toLowerCase()] = s.value||""; });
-  const used = new Set();
-  const result = SPEC_TEMPLATE.map(label=>{
-    used.add(label.toLowerCase());
-    return {label, value: got[label.toLowerCase()] || ""};
-  });
-  // Cualquier campo extra que la IA haya añadido y no esté en la plantilla, lo agregamos al final
-  (l.item_specifics||[]).forEach(s=>{
-    if(s && s.label && !used.has(s.label.toLowerCase())) result.push({label:s.label, value:s.value||""});
-  });
-  return result;
-}
-
-// ---- Notas fijas por defecto (editables en Ajustes) ----
-const NOTES_VERSION = 2; // súbelo si cambias los textos por defecto para forzar refresco
-const DEFAULT_NOTES = {
-  mannequin: "📌 Note: Images are for reference only to demonstrate fit and style. The actual {item} is the same as shown in the mannequin photos. Slight variations in color or details may occur due to lighting and screen settings.",
-  hanger: "📌 Note: Images are for reference only to show fit and style. The actual {item} is the same as shown in the photos on the hanger. Slight variations in color or details may occur due to lighting and screen settings.",
-  fixed:
-`{emoji} The {item} is used but in good condition.
-📸 The color may vary slightly due to lighting and photography.
-📏 Measurements were taken with the garment laid out flat on a surface. It's recommended to compare with a similar garment to ensure the desired fit.
-🚚 Ships next business day after payment.
-🧼 The clothing was only steamed, so it may need to be washed before use.`
-};
-
-function getNotes(){
-  try{
-    const saved = JSON.parse(localStorage.getItem('ebayNotes')||'null');
-    const ver = Number(localStorage.getItem('ebayNotesVer')||'0');
-    if(saved && saved.mannequin && saved.hanger && saved.fixed && ver>=NOTES_VERSION) return saved;
-  }catch{}
-  // No hay notas, o son de una versión vieja: usar las nuevas por defecto y guardarlas
-  saveNotes({...DEFAULT_NOTES});
-  return {...DEFAULT_NOTES};
-}
-function saveNotes(n){ try{ localStorage.setItem('ebayNotes', JSON.stringify(n)); localStorage.setItem('ebayNotesVer', String(NOTES_VERSION)); }catch{} }
-
-// ---- Compresión de imágenes (robusta: HEIC/HEIF, fallbacks, sin colgarse) ----
-function drawToJpeg(source, w, h){
-  const max=1024;
-  if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
-  else if(h>max){ w=Math.round(w*max/h); h=max; }
-  const c=document.createElement('canvas');
-  c.width=w; c.height=h;
-  const ctx=c.getContext('2d');
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
-  ctx.drawImage(source,0,0,w,h);
-  return {dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'};
-}
-function loadViaImageEl(file){
-  return new Promise((resolve,reject)=>{
-    const url=URL.createObjectURL(file);
-    const img=new Image();
-    img.onload=()=>{ try{ resolve(drawToJpeg(img,img.naturalWidth,img.naturalHeight)); }catch(e){ reject(e); } finally{ URL.revokeObjectURL(url); } };
-    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('decode-failed')); };
-    img.src=url;
-  });
-}
+// ---- Compresión de imágenes ----
 async function compress(file){
-  if('createImageBitmap' in window){
+  // Si es HEIC/HEIF (formato del iPhone), convertir primero a JPEG.
+  const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name||'');
+  if(isHeic && typeof heic2any !== 'undefined'){
     try{
-      const bmp=await createImageBitmap(file);
-      const r=drawToJpeg(bmp,bmp.width,bmp.height);
-      if(bmp.close) bmp.close();
-      return r;
-    }catch(_){ /* cae al fallback */ }
+      const out = await heic2any({ blob:file, toType:'image/jpeg', quality:0.85 });
+      file = new File([Array.isArray(out)?out[0]:out], (file.name||'foto')+'.jpg', {type:'image/jpeg'});
+    }catch(err){
+      throw new Error('No se pudo leer una foto del iPhone (HEIC). Prueba a tomar la foto en formato JPG o sube una captura de pantalla.');
+    }
   }
-  return await loadViaImageEl(file);
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>reject(new Error('No se pudo leer la foto.'));
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = ()=>reject(new Error('No se pudo abrir una de las fotos. Intenta con otra.'));
+      img.onload = ()=>{
+        const max=1024; let {width,height}=img;
+        if(width>height && width>max){height=height*max/width;width=max;}
+        else if(height>max){width=width*max/height;height=max;}
+        const c=document.createElement('canvas');
+        c.width=width;c.height=height;
+        c.getContext('2d').drawImage(img,0,0,width,height);
+        resolve({dataUrl:c.toDataURL('image/jpeg',0.8),mediaType:'image/jpeg'});
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 async function addFiles(fileList){
-  let skipped=0;
   for(const file of Array.from(fileList)){
-    if(!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)){ skipped++; continue; }
+    const isImg = (file.type||'').startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(file.name||'');
+    if(!isImg) continue;
     if(images.length>=MAX) break;
     try{
       const {dataUrl,mediaType}=await compress(file);
       images.push({id:crypto.randomUUID(),dataUrl,mediaType});
-    }catch(_){ skipped++; }
+    }catch(err){
+      $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo añadir una foto</strong><p>${err.message}</p></div></div>`;
+    }
   }
   renderThumbs();
-  if(skipped>0){
-    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>${skipped} foto(s) no se pudieron añadir</strong><p>Pueden estar dañadas o en un formato no compatible. Las demás sí se cargaron.</p></div></div>`;
-    setTimeout(()=>{ if($('errBox')) $('errBox').innerHTML=''; }, 6000);
-  }
 }
 
 function renderThumbs(){
@@ -303,8 +198,6 @@ $('btnGen').onclick=async ()=>{
     const data=await res.json();
     if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
     listing=data;
-    // Reordenar y completar los item specifics según el orden de eBay para esta prenda
-    listing.item_specifics = orderedSpecs(listing);
     editing=false;
     renderResult();
   }catch(err){
@@ -315,36 +208,11 @@ $('btnGen').onclick=async ()=>{
   }
 };
 
-// ---- Construir el bloque de notas fijas según prenda detectada ----
-function buildNotesBlock(l){
-  const notes=getNotes();
-  const g = GARMENTS[l.garment] || null;
-  const emoji = g ? g.emoji : '🏷️';
-  const itemEn = g ? g.en : 'item';
-  const isPlural = /s$/i.test(itemEn) && itemEn.toLowerCase()!=='dress'; // shoes, pants, shorts
-  const pin = (l.display==='mannequin') ? notes.mannequin : notes.hanger;
-  let filled = (txt)=> (txt||'')
-      .replaceAll('{emoji}', emoji)
-      .replaceAll('{item}', itemEn);
-  let block = filled(pin) + "\n\n" + filled(notes.fixed);
-  // Concordancia para prendas en plural (p. ej. "shoes are" en vez de "shoes is")
-  if(isPlural){
-    block = block
-      .replace(new RegExp(`(the actual ${itemEn}) is\\b`,'gi'), '$1 are')
-      .replace(new RegExp(`(This ${itemEn}) is\\b`,'gi'), '$1 are');
-  }
-  return block;
-}
-
-// ---- Texto plano del listado (notas arriba, igual que en eBay) ----
+// ---- Texto plano del listado ----
 function buildText(l){
-  const specs=(l.item_specifics||[])
-    .filter(s=> (s.value||'').trim()!=='') // solo los que tienen valor
-    .map(s=>`${s.label}: ${s.value}`).join('\n');
+  const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
   const kw=(l.keywords||[]).join(', ');
-  const notesBlock=buildNotesBlock(l);
-  const fullDesc = notesBlock + "\n\n" + (l.description||'');
-  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${fullDesc}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${l.description||''}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
 }
 
 // ---- Render del resultado ----
@@ -352,15 +220,10 @@ function renderResult(){
   const l=listing;
   if(!l){$('result').innerHTML='';return;}
   const tlen=(l.title||'').length;
-  const g = GARMENTS[l.garment] || null;
-  const detectedLabel = g ? `${g.emoji} ${g.es}` : '🏷️ prenda';
-  const displayLabel = (l.display==='mannequin') ? '🧍 Maniquí' : '🪝 Gancho';
-  const notesBlock=buildNotesBlock(l);
-
   const specsHtml=(l.item_specifics||[]).map((s,i)=>
     editing
-    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" placeholder="— completar —" style="font-size:14px;padding:6px 9px"></div>`
-    : `<div class="spec"><span class="k">${s.label}</span><span style="${s.value?'':'color:var(--muted)'}">${s.value||'—'}</span></div>`
+    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
+    : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
   ).join('');
   const kwHtml=(l.keywords||[]).map(k=>`<span class="chip">${k}</span>`).join(' ');
 
@@ -382,11 +245,6 @@ function renderResult(){
         ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
         <div>
           <div class="field-h">📝 Descripción</div>
-          <div style="display:flex;gap:8px;margin-bottom:9px">
-            <span class="detected">Detectado: ${detectedLabel}</span>
-            <span class="detected">${displayLabel}</span>
-          </div>
-          <div class="notesblock" style="margin-bottom:10px"><p>${notesBlock.replace(/</g,'&lt;')}</p></div>
           ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
         </div>
         ${kwHtml?`<div><div class="field-h">🔍 Keywords (theme)</div><div style="display:flex;flex-wrap:wrap;gap:6px">${kwHtml}</div></div>`:''}
@@ -461,37 +319,6 @@ function resetAll(){
   renderThumbs();renderResult();$('errBox').innerHTML='';
   window.scrollTo({top:0,behavior:'smooth'});
 }
-
-// ---- AJUSTES ----
-function loadSettingsUI(){
-  const n=getNotes();
-  $('setMannequin').value=n.mannequin;
-  $('setHanger').value=n.hanger;
-  $('setFixed').value=n.fixed;
-}
-$('setToggle').onclick=()=>{
-  const body=$('setBody');
-  const open = body.style.display==='none';
-  body.style.display = open?'block':'none';
-  $('setArrow').textContent = open?'▴':'▾';
-  if(open) loadSettingsUI();
-};
-$('setSave').onclick=()=>{
-  const n={
-    mannequin:$('setMannequin').value,
-    hanger:$('setHanger').value,
-    fixed:$('setFixed').value,
-  };
-  saveNotes(n);
-  const b=$('setSave'); b.innerHTML='✅ Guardado'; setTimeout(()=>b.innerHTML='💾 Guardar',1600);
-  if(listing) renderResult();
-};
-$('setReset').onclick=()=>{
-  saveNotes({...DEFAULT_NOTES});
-  loadSettingsUI();
-  const b=$('setReset'); b.innerHTML='✅ Restaurado'; setTimeout(()=>b.innerHTML='↩️ Restaurar',1600);
-  if(listing) renderResult();
-};
 </script>
 </body>
 </html>
