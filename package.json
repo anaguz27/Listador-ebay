@@ -1,6 +1,8 @@
 {
   "name": "listador-ebay",
   "version": "1.0.0",
-  "description": "Genera listados optimizados de eBay desde fotos usando IA",
-  "private": true
+  "description": "Genera listados optimizados para eBay",
+  "private": true,
+  "type": "module"
 }
+
