@@ -74,7 +74,7 @@
     </div>
     <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
     <input id="inGal" type="file" accept="image/*" multiple hidden>
-    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16.</p>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 10 primeras.</p>
   </section>
 
   <section class="card fadeUp" style="margin-top:16px">
@@ -316,7 +316,9 @@ $('btnGen').onclick=async ()=>{
   $('result').innerHTML='';
 
   try{
-    const toSend = await fitPayload();
+    const fitted = await fitPayload();
+    // La app acepta hasta 16 fotos, pero a la IA se le envían SOLO las 10 primeras.
+    const toSend = fitted.slice(0, 10);
     const res=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -483,7 +485,7 @@ $('btnSaveNotes').onclick=()=>{
     common:    $('naCommon').value.split('\n').map(s=>s.trim()).filter(Boolean)
   };
   saveNotes(fixedNotes);
-  const m=$('notesSaved'); m.style.display='block'; setTimeout(()=>m.style.display='none',2200);
+  const m=$('notesSaved'); m.textContent='✅ Notas guardadas en este dispositivo.'; m.style.display='block'; setTimeout(()=>m.style.display='none',2200);
   if(listing) renderResult(); // refleja el cambio si ya hay un listado
 };
 
@@ -491,11 +493,9 @@ $('btnResetNotes').onclick=()=>{
   fixedNotes = JSON.parse(JSON.stringify(DEFAULT_NOTES));
   saveNotes(fixedNotes);
   fillNotesForm();
-  const m=$('notesSaved'); m.textContent='↩️ Notas restauradas a las de fábrica.'; m.style.display='block';
-  setTimeout(()=>{m.style.display='none';m.textContent='✅ Notas guardadas en este dispositivo.';},2200);
+  const m=$('notesSaved'); m.textContent='↩️ Notas restauradas a las de fábrica.'; m.style.display='block'; setTimeout(()=>m.style.display='none',2200);
   if(listing) renderResult();
 };
-
 </script>
 </body>
 </html>

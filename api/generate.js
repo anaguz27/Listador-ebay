@@ -27,9 +27,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No se recibieron imágenes." });
     }
 
+    // Enviar a la IA como máximo las primeras 10 fotos (las más importantes).
+    // El usuario puede subir hasta 16, pero solo las primeras 10 van al modelo.
+    const imagesForAI = images.slice(0, 10);
+
     // Construir el contenido del mensaje: imágenes + instrucción
     const content = [];
-    for (const img of images) {
+    for (const img of imagesForAI) {
       content.push({
         type: "image",
         source: {
@@ -79,9 +83,18 @@ STEP 2 — For Dress Length, convert the measured shoulder-to-hem length using t
    (Apply the analogous logic to other measured fields: Sleeve Length, Inseam, Rise, Heel Height, Band/Cup Size — if the tape shows the number, use it as fact.)
 STEP 3 — ONLY if there is NO readable tape measure in any photo and no measurement on a tag, then you are merely estimating visually: in that case you MUST add " (verify)" after the value (e.g. "Midi (verify)", "Maxi (verify)"), and when ambiguous between two options pick the more conservative/shorter one. The same applies to Style/Type fields that contain a length word (write "Maxi Dress (verify)" only if the length is a pure visual guess).
 NEVER assert a definitive length from the image alone — but DO assert it confidently when the tape measure in the photo shows the number.
+
+PANTS/JEANS MEASUREMENTS — WAIST, INSEAM AND LEG STYLE (apply ONLY when the garment is pants, jeans, trousers or leggings):
+The seller includes tape-measure photos specifically for pants. Use them to fill these item specifics. ALL measurements must be reported in INCHES. If a tape shows centimeters, convert to inches (1 in = 2.54 cm) and round to the nearest whole inch.
+• WAIST SIZE — the seller lays the tape FLAT across the waistband from side to side (edge to edge), so it shows HALF of the real waist. Read that flat width and MULTIPLY BY 2 to get the full waist circumference. Put the result in an item specific labeled "Waist Size" in inches (e.g. "32 in"). State it as a FACT (no "(verify)") when you can read the tape.
+• INSEAM — the seller lays the tape ALONG THE INNER LEG, from the crotch seam down to the bottom hem, in a photo where you can see the full leg length and read the number at the hem. Read that number directly (it is already the full inseam, do NOT multiply). Put it in an item specific labeled "Inseam" in inches (e.g. "30 in"). State it as a FACT when readable.
+• LEG STYLE / FIT — decide whether the pants are "Wide Leg" or "Straight" using BOTH the leg-opening width photo (the tape laid ACROSS the bottom hem, side to side) AND the overall shape of the leg in the full photo:
+   - Measure the leg opening (flat width across the hem). A flat hem width of about 8 in or less, with a leg that stays the same width or tapers slightly from knee to hem, means "Straight".
+   - A flat hem width clearly wider (about 9–10 in or more) AND a leg that visibly widens/flares from the knee down to the hem means "Wide Leg".
+   - Put the result in an item specific labeled "Leg Style" (value exactly "Wide Leg" or "Straight"). Also reflect it in the title and Style field when relevant. State it as a FACT when the photos clearly show it; add " (verify)" only if you truly cannot tell.
 - Country of Origin usually comes from the "Made in ___" line on the brand/care tag.
 - Occasion: where the item would realistically be worn (e.g. Casual, Travel, Workwear, Party/Cocktail, Beach, Vacation).
-- Theme: style/occasion words based on the garment's actual style (e.g. Romantic, Feminine, Cottagecore, Boho, Coastal, Resort, Everyday). Base these on the real style, do not invent unrelated themes.
+- Theme: PUT AT LEAST 5 style/search words that a real buyer would type, separated by commas, based on the garment's actual style and the occasion it suits (e.g. "Vintage, Western, Casual, Everyday, Retro, Streetwear"). Base them on the real style of THIS item — do not invent unrelated themes.
 - Garment Care comes from the care tag (e.g. Machine Washable, Hand Wash, Dry Clean Only).
 Always include Brand, Department, Type, Size and Condition. Then add every other field below that clearly applies.
 
@@ -105,16 +118,16 @@ Create a complete, ready-to-publish eBay listing as a JSON object with exactly t
     {"label": "Condition", "value": "..."}
   ],
   "keywords": ["8-12 buyer search keywords in english based on STYLE and OCCASION, no # symbol"],
-  "description": "persuasive sales description in ENGLISH, MEDIUM length — like a typical good eBay clothing listing, NOT long. Write ONE single natural paragraph (you decide the exact length, but keep it medium and tight, roughly 4-7 sentences). Cover only the essentials: what the item is, the brand if known, the key style points (silhouette/fit, neckline, sleeves, hem, print/color), the size, and the condition stated honestly with any visible flaws. Do not pad it, do not repeat the item specifics, do not write multiple paragraphs. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
+  "description": "persuasive sales description in ENGLISH, MEDIUM length — like a typical good eBay clothing listing, NOT long. Write ONE single natural paragraph (you decide the exact length, but keep it medium and tight, roughly 4-7 sentences). Cover only the essentials: what the item is, the brand if known, the key style points (silhouette/fit, neckline, sleeves, hem, print/color), the size, and the condition stated honestly with any visible flaws. Do not pad it, do not repeat the item specifics, do not write multiple paragraphs. Do NOT include any keyword list, hashtag list, search-terms line or SEO keywords inside the description. Do NOT include shipping, washing, color-variation or measurement boilerplate notes; those are added separately by the app.",
   "price_min": number,
   "price_max": number
 }
 
-The item_specifics array above is the MINIMUM. ADD as many of these additional labels as you can determine for this exact item (omit any you are unsure of): Neckline, Sleeve Length, Sleeve Type, Dress Length, Closure, Fabric Type, Features, Occasion, Theme, Season, Country of Origin, Vintage, Garment Care, Heel Height (shoes), Department-specific fields. The more accurate specifics, the better — but never invent.
+The item_specifics array above is the MINIMUM. ADD as many of these additional labels as you can determine for this exact item (omit any you are unsure of): Neckline, Sleeve Length, Sleeve Type, Dress Length, Waist Size, Inseam, Leg Style, Rise, Closure, Fabric Type, Features, Occasion, Theme, Season, Country of Origin, Vintage, Garment Care, Heel Height (shoes), Department-specific fields. The more accurate specifics, the better — but never invent.
 
 For price_min and price_max: estimate the realistic SOLD price range in USD for this item in this condition on eBay, as an experienced reseller would, considering the brand's resale demand, item type and condition. Give a sensible range (not too wide).
 
-If you cannot read a field, give your best expert estimate and add "(verify)" after the value. Keep item_specifics relevant to the actual product. Remember: Size is mandatory and must never be empty. The "keywords" must reflect the garment's style and the occasion it suits.`,
+If you cannot read a field, give your best expert estimate and add "(verify)" after the value. Keep item_specifics relevant to the actual product. Remember: Size is mandatory and must never be empty. The "keywords" must reflect the garment's style and the occasion it suits. The "Theme" item specific must contain at least 5 comma-separated buyer search words.`,
     });
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -157,10 +170,12 @@ function extractJson(raw) {
   if (!raw) return null;
   let t = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
   try { return JSON.parse(t); } catch {}
-  const start = t.indexOf("{");
-  const end = t.lastIndexOf("}");
-  if (start !== -1 && end !== -1 && end > start) {
-    try { return JSON.parse(t.slice(start, end + 1)); } catch {}
+  // Si viene con texto alrededor, recortar al primer { y último }
+  const first = t.indexOf("{");
+  const last = t.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) {
+    const slice = t.slice(first, last + 1);
+    try { return JSON.parse(slice); } catch {}
   }
   return null;
 }
