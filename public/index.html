@@ -349,10 +349,9 @@ $('btnGen').onclick=async ()=>{
 // ---- Texto plano del listado ----
 function buildText(l){
   const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
-  const kw=(l.keywords||[]).join(', ');
   const notes=buildFixedNotes(l.garment, l.display);
   const descBlock = (notes ? notes+'\n\n' : '') + (l.description||'');
-  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${descBlock}\n\nKEYWORDS (theme): ${kw}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${descBlock}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
 }
 
 // ---- Render del resultado ----
@@ -365,7 +364,6 @@ function renderResult(){
     ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
     : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
   ).join('');
-  const kwHtml=(l.keywords||[]).map(k=>`<span class="chip">${k}</span>`).join(' ');
 
   $('result').innerHTML=`
     <section class="fadeUp" style="margin-top:24px">
@@ -388,7 +386,6 @@ function renderResult(){
           <div class="field-h">📝 Descripción</div>
           ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
         </div>
-        ${kwHtml?`<div><div class="field-h">🔍 Keywords (theme)</div><div style="display:flex;flex-wrap:wrap;gap:6px">${kwHtml}</div></div>`:''}
         <div>
           <div class="field-h">💲 Precio sugerido</div>
           ${editing
