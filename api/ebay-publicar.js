@@ -1,21 +1,22 @@
-// api/ebay-publicar.js  — Fase 4, Paso C: publicar listado AGENDADO desde la app
-// Usa el EBAY_REFRESH_TOKEN guardado en Vercel para renovar acceso solo.
-// Recibe del frontend: { listing, images, startDate }
-//   listing = el JSON de la IA (title, item_specifics, description, price_min/max, garment, display, fixedNotes)
-//   images  = [{ data: base64SinPrefijo, mediaType }]
-//   startDate = ISO UTC opcional (ej "2026-06-10T18:00:00Z"); si falta, +7 dias
-// Hace: token -> sube fotos a EPS -> item -> oferta agendada -> publishOffer
-// Devuelve log por paso.
+// api/ebay-publicar.js  — Fase 4 v4: arregla el TIMEOUT (502)
+// Cambios clave:
+//  - maxDuration 60s (mas tiempo para la funcion)
+//  - sube fotos EN PARALELO (no una por una)
+//  - NO hace la segunda llamada getImage: usa la URL del header Location directo
+//  - limita a 8 fotos para ir mas rapido
 
-export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
+export const config = {
+  api: { bodyParser: { sizeLimit: "10mb" } },
+  maxDuration: 60
+};
 
 const EBAY_OAUTH = "https://api.sandbox.ebay.com/identity/v1/oauth2/token";
 const INVENTORY_API = "https://api.sandbox.ebay.com/sell/inventory/v1";
 const MEDIA_API = "https://apim.sandbox.ebay.com/commerce/media/v1_beta";
 
 const MARKETPLACE = "EBAY_US";
+const MAX_FOTOS = 8;
 
-// Politicas (Fase 2)
 const POLICY_PAGO = "6229043000";
 const POLICY_DEVOLUCIONES = "6229044000";
 const ENVIO = {
@@ -25,37 +26,23 @@ const ENVIO = {
   "9.98": "6229041000"
 };
 
-// Mapa: tipo de prenda -> politica de envio
 function envioPorPrenda(garment) {
   const g = (garment || "").toLowerCase();
   if (g === "blouse") return ENVIO["7.00"];
   if (g === "sweater" || g === "dress") return ENVIO["8.99"];
-  if (g === "pants" || g === "shorts" || g === "shoes" || g === "bag" || g === "swimsuit" || g === "bra")
-    return ENVIO["9.98"];
-  return ENVIO["9.98"]; // por defecto, el mas alto (seguro)
+  return ENVIO["9.98"];
 }
 
-// Categoria eBay por tipo de prenda (Sandbox suele aceptar estas)
 function categoriaPorPrenda(garment) {
   const g = (garment || "").toLowerCase();
   const cats = {
-    blouse: "53159",   // Women's Tops & Blouses
-    dress: "63861",    // Women's Dresses
-    pants: "63863",    // Women's Pants
-    shorts: "11555",   // Women's Shorts
-    sweater: "63866",  // Women's Sweaters
-    shoes: "3034",     // Women's Shoes
-    bag: "169291",     // Women's Bags & Handbags
-    swimsuit: "63867", // Women's Swimwear
-    bra: "163225"      // Women's Intimates
+    blouse: "53159", dress: "63861", pants: "63863", shorts: "11555",
+    sweater: "63866", shoes: "3034", bag: "169291", swimsuit: "63867", bra: "163225"
   };
   return cats[g] || "53159";
 }
 
-// Genera un SKU unico
-function nuevoSku() {
-  return "APP-" + Date.now();
-}
+function nuevoSku() { return "APP-" + Date.now(); }
 
 function fechaPorDefecto() {
   const d = new Date();
@@ -64,7 +51,6 @@ function fechaPorDefecto() {
   return d.toISOString().split(".")[0] + "Z";
 }
 
-// --- Renovar access token con el refresh token guardado ---
 async function getAccessToken() {
   const refresh = process.env.EBAY_REFRESH_TOKEN;
   if (!refresh) throw new Error("Falta EBAY_REFRESH_TOKEN en Vercel");
@@ -103,57 +89,39 @@ function H(token) {
   };
 }
 
-// --- Subir UNA foto a EPS (multipart) y devolver su URL ---
+// Sube UNA foto a EPS. Usa la URL del header Location directo (sin getImage).
 async function subirFoto(token, base64, mediaType) {
-  const bin = Buffer.from(base64, "base64");
-  const boundary = "----eps" + Date.now() + Math.random().toString(16).slice(2);
-  const pre = Buffer.from(
-    `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="image"; filename="foto.jpg"\r\n` +
-    `Content-Type: ${mediaType || "image/jpeg"}\r\n\r\n`
-  );
-  const post = Buffer.from(`\r\n--${boundary}--\r\n`);
-  const cuerpo = Buffer.concat([pre, bin, post]);
+  try {
+    const bin = Buffer.from(base64, "base64");
+    const blob = new Blob([bin], { type: mediaType || "image/jpeg" });
+    const form = new FormData();
+    form.append("image", blob, "foto.jpg");
 
-  const r = await fetch(`${MEDIA_API}/image/create_image_from_file`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": `multipart/form-data; boundary=${boundary}`
-    },
-    body: cuerpo
-  });
+    const r = await fetch(`${MEDIA_API}/image/create_image_from_file`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      body: form
+    });
 
-  // EPS devuelve 201 con la URL de la imagen en el header Location
-  if (r.status === 201) {
-    const loc = r.headers.get("location") || "";
-    // loc = https://apim.sandbox.ebay.com/commerce/media/v1_beta/image/{image_id}
-    const imageId = loc.split("/image/")[1];
-    // La URL que se usa en el listado es la EPS publica; la obtenemos con getImage
-    try {
-      const g = await fetch(`${MEDIA_API}/image/${imageId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const gd = await g.json().catch(() => ({}));
-      const url = gd?.imageUrls?.[0]?.imageUrl || gd?.image?.imageUrl || null;
-      return { ok: true, imageId, url };
-    } catch {
-      return { ok: true, imageId, url: null };
+    if (r.status === 201) {
+      // La URL publica EPS viene en el header Location
+      const loc = r.headers.get("location") || "";
+      return { ok: true, url: loc };
     }
+    const txt = await r.text().catch(() => "");
+    return { ok: false, status: r.status, error: txt.slice(0, 400) };
+  } catch (err) {
+    return { ok: false, error: "excepcion: " + String(err) };
   }
-  const err = await r.text().catch(() => "");
-  return { ok: false, status: r.status, error: err.slice(0, 300) };
 }
 
-// Convierte item_specifics [{label,value}] al formato aspects de eBay
 function toAspects(specs) {
   const aspects = {};
   (specs || []).forEach((s) => {
     if (!s || !s.label || !s.value) return;
-    if (s.value === "—") return; // saltar size desconocido
+    if (s.value === "—") return;
     aspects[s.label] = [String(s.value)];
   });
-  // Garantizar Size Type (eBay lo exige en blusas)
   if (!aspects["Size Type"]) aspects["Size Type"] = ["Regular"];
   return aspects;
 }
@@ -171,18 +139,27 @@ export default async function handler(req, res) {
     const token = await getAccessToken();
     pasos.push({ paso: "0-token", ok: true });
 
-    // 1) Subir fotos a EPS
+    // 1) Subir fotos EN PARALELO (clave para no exceder el tiempo)
+    const aSubir = images.slice(0, MAX_FOTOS);
+    const resultados = await Promise.all(
+      aSubir.map((img) => subirFoto(token, img.data, img.mediaType))
+    );
     const urls = [];
-    for (let i = 0; i < Math.min(images.length, 12); i++) {
-      const r = await subirFoto(token, images[i].data, images[i].mediaType);
-      pasos.push({ paso: `1-foto-${i + 1}`, ok: r.ok, url: r.url, error: r.error });
+    const erroresFoto = [];
+    resultados.forEach((r, i) => {
+      pasos.push({ paso: `1-foto-${i + 1}`, ok: r.ok, url: r.url, status: r.status, error: r.error });
       if (r.ok && r.url) urls.push(r.url);
-    }
+      else erroresFoto.push(`foto ${i + 1}: [${r.status}] ${r.error}`);
+    });
     if (!urls.length) {
-      return res.status(502).json({ error: "No se pudo subir ninguna foto a eBay", pasos });
+      return res.status(502).json({
+        error: "No se pudo subir ninguna foto a eBay",
+        errorDetalle: erroresFoto.join(" || "),
+        pasos
+      });
     }
 
-    // 2) Crear inventory item
+    // 2) Inventory item
     const sku = nuevoSku();
     const descBlock =
       (listing.fixedNotes ? listing.fixedNotes + "\n\n" : "") + (listing.description || "");
@@ -207,7 +184,7 @@ export default async function handler(req, res) {
     }
     pasos.push({ paso: "2-item", ok: true, sku });
 
-    // 3) Crear oferta agendada
+    // 3) Oferta agendada
     const fecha = startDate || fechaPorDefecto();
     const precio = String(listing.price_max || listing.price_min || "9.99");
     const ofRes = await fetch(`${INVENTORY_API}/offer`, {
