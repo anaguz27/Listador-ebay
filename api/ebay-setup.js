@@ -1,6 +1,6 @@
-// api/ebay-setup.js
-// Fase 2 — crea las 6 politicas de cumplimiento en eBay Sandbox de una sola vez.
-// Uso: hacer login OAuth, copiar el ?code= de la URL de retorno y pegarlo en:
+// api/ebay-setup.js  — v2
+// Fase 2 — opt-in a Business Policies + crea las politicas de cumplimiento en Sandbox.
+// Uso: login OAuth, copiar el ?code= y pegarlo en:
 //   /api/ebay-setup?code=EL_CODIGO   (dentro de los 5 minutos)
 
 const EBAY_OAUTH = "https://api.sandbox.ebay.com/identity/v1/oauth2/token";
@@ -9,7 +9,6 @@ const ACCOUNT_API = "https://api.sandbox.ebay.com/sell/account/v1";
 const MARKETPLACE = "EBAY_US";
 const CATEGORY = [{ name: "ALL_EXCLUDING_MOTORS_VEHICLES" }];
 
-// Politica de envio reutilizable: solo cambia nombre y precio
 function shippingPolicy(name, price) {
   return {
     name,
@@ -86,6 +85,29 @@ async function getToken(code) {
   return data.access_token;
 }
 
+// Inscribe al vendedor en Business Policies (necesario para pago y devoluciones)
+async function optIn(token) {
+  try {
+    const res = await fetch(`${ACCOUNT_API}/program/opt_in`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ programType: "SELLING_POLICY_MANAGEMENT" })
+    });
+
+    if (res.status === 200 || res.status === 204) {
+      return { label: "opt_in", ok: true, nota: "Inscrito en business policies" };
+    }
+    const data = await res.json().catch(() => ({}));
+    // Si ya estaba inscrito, eBay devuelve error; lo tratamos como ok suave.
+    return { label: "opt_in", ok: false, status: res.status, error: data };
+  } catch (err) {
+    return { label: "opt_in", ok: false, error: String(err) };
+  }
+}
+
 async function createPolicy(endpoint, token, payload, label) {
   try {
     const res = await fetch(`${ACCOUNT_API}/${endpoint}`, {
@@ -99,7 +121,15 @@ async function createPolicy(endpoint, token, payload, label) {
     });
 
     const data = await res.json();
+
+    // Caso "ya existe": rescatamos el ID que eBay reporta en los parametros.
     if (!res.ok) {
+      const dup = data?.errors?.[0]?.parameters?.find(
+        (p) => p.name === "DuplicateProfileId"
+      );
+      if (dup) {
+        return { label, ok: true, id: dup.value, name: payload.name, nota: "ya existia" };
+      }
       return { label, ok: false, status: res.status, error: data };
     }
 
@@ -127,6 +157,12 @@ export default async function handler(req, res) {
     const token = await getToken(code);
 
     const results = [];
+
+    // 1) Opt-in primero (clave para pago y devoluciones)
+    const optResult = await optIn(token);
+    results.push(optResult);
+
+    // 2) Crear politicas
     results.push(
       await createPolicy("payment_policy", token, PAYMENT_POLICY, "pago")
     );
@@ -140,11 +176,11 @@ export default async function handler(req, res) {
     }
 
     const ids = results
-      .filter((r) => r.ok)
+      .filter((r) => r.ok && r.id)
       .map((r) => ({ label: r.label, id: r.id, name: r.name }));
 
     return res.status(200).json({
-      resumen: `${ids.length} de ${results.length} politicas creadas`,
+      resumen: `${ids.length} politicas con ID`,
       idsParaGuardar: ids,
       detalleCompleto: results
     });
