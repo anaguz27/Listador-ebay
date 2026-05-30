@@ -1,6 +1,6 @@
-// api/ebay-publish-test.js  — Fase 3, publicar la oferta de prueba (v2)
-// Publica el offerId creado en el paso anterior (publishOffer).
-// v2: el publish va SOLO con el token, sin headers de idioma (eBay los rechaza aqui).
+// api/ebay-publish-test.js  — Fase 3, publicar la oferta de prueba (v3)
+// v3: Accept-Language y Content-Language EXPLICITOS como en-US.
+// El error 25709 sale cuando el header llega vacio o con valor raro; ponerlo explicito lo arregla.
 // Uso: login OAuth, copiar ?code= fresco y pegarlo en:
 //   /api/ebay-publish-test?code=EL_CODIGO   (dentro de 5 min)
 
@@ -39,7 +39,9 @@ async function publicar(token) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          "Accept-Language": "en-US",
+          "Content-Language": "en-US"
         }
       }
     );
