@@ -194,7 +194,8 @@ export default async function handler(req, res) {
     if (itemRes.status !== 200 && itemRes.status !== 204) {
       const e = await itemRes.json().catch(() => ({}));
       pasos.push({ paso: "2-item", ok: false, status: itemRes.status, error: e });
-      return res.status(502).json({ error: "Fallo al crear el item", errorDetalle: JSON.stringify(e).slice(0,400), pasos });
+      const msgs = (e.errors || []).map((x) => x.message).join(" | ");
+      return res.status(502).json({ error: "Fallo al crear el item: " + (msgs || JSON.stringify(e).slice(0,400)), pasos });
     }
     pasos.push({ paso: "2-item", ok: true, sku });
 
@@ -224,7 +225,8 @@ export default async function handler(req, res) {
     const ofData = await ofRes.json().catch(() => ({}));
     if (ofRes.status !== 200 && ofRes.status !== 201) {
       pasos.push({ paso: "3-oferta", ok: false, status: ofRes.status, error: ofData });
-      return res.status(502).json({ error: "Fallo al crear la oferta", errorDetalle: JSON.stringify(ofData).slice(0,400), pasos });
+      const msgs = (ofData.errors || []).map((x) => x.message).join(" | ");
+      return res.status(502).json({ error: "Fallo al crear la oferta: " + (msgs || JSON.stringify(ofData).slice(0,400)), pasos });
     }
     const offerId = ofData.offerId;
     pasos.push({ paso: "3-oferta", ok: true, offerId, fecha });
@@ -237,8 +239,12 @@ export default async function handler(req, res) {
     const pubData = await pubRes.json().catch(() => ({}));
     if (pubRes.status !== 200 && pubRes.status !== 201) {
       pasos.push({ paso: "4-publicar", ok: false, status: pubRes.status, error: pubData });
+      // Meter el detalle DENTRO de "error" para que cualquier version del index lo muestre
+      const msgs = (pubData.errors || [])
+        .map((e) => e.message + (e.parameters ? " (" + e.parameters.map(p=>p.value).join(", ") + ")" : ""))
+        .join(" | ");
       return res.status(502).json({
-        error: "Fallo al publicar",
+        error: "Fallo al publicar: " + (msgs || JSON.stringify(pubData).slice(0, 400)),
         errorDetalle: JSON.stringify(pubData).slice(0, 500),
         pasos
       });
