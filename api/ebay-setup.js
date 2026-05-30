@@ -1,5 +1,5 @@
-// api/ebay-setup.js  — v2
-// Fase 2 — opt-in a Business Policies + crea las politicas de cumplimiento en Sandbox.
+// api/ebay-setup.js  — v3
+// Fase 2 — opt-in + crea politicas + LEE todas las politicas y devuelve los 6 IDs limpios.
 // Uso: login OAuth, copiar el ?code= y pegarlo en:
 //   /api/ebay-setup?code=EL_CODIGO   (dentro de los 5 minutos)
 
@@ -79,13 +79,10 @@ async function getToken(code) {
   });
 
   const data = await res.json();
-  if (!res.ok) {
-    throw new Error(`Token error: ${JSON.stringify(data)}`);
-  }
+  if (!res.ok) throw new Error(`Token error: ${JSON.stringify(data)}`);
   return data.access_token;
 }
 
-// Inscribe al vendedor en Business Policies (necesario para pago y devoluciones)
 async function optIn(token) {
   try {
     const res = await fetch(`${ACCOUNT_API}/program/opt_in`, {
@@ -96,12 +93,13 @@ async function optIn(token) {
       },
       body: JSON.stringify({ programType: "SELLING_POLICY_MANAGEMENT" })
     });
-
     if (res.status === 200 || res.status === 204) {
-      return { label: "opt_in", ok: true, nota: "Inscrito en business policies" };
+      return { label: "opt_in", ok: true, nota: "inscrito ahora" };
+    }
+    if (res.status === 409) {
+      return { label: "opt_in", ok: true, nota: "ya estaba inscrito" };
     }
     const data = await res.json().catch(() => ({}));
-    // Si ya estaba inscrito, eBay devuelve error; lo tratamos como ok suave.
     return { label: "opt_in", ok: false, status: res.status, error: data };
   } catch (err) {
     return { label: "opt_in", ok: false, error: String(err) };
@@ -119,29 +117,43 @@ async function createPolicy(endpoint, token, payload, label) {
       },
       body: JSON.stringify(payload)
     });
-
     const data = await res.json();
-
-    // Caso "ya existe": rescatamos el ID que eBay reporta en los parametros.
     if (!res.ok) {
-      const dup = data?.errors?.[0]?.parameters?.find(
-        (p) => p.name === "DuplicateProfileId"
-      );
+      const errObj = data?.errors?.[0];
+      const dup =
+        errObj?.parameters?.find((p) => p.name === "DuplicateProfileId") ||
+        errObj?.parameters?.find((p) => p.name === "duplicatePolicyId");
       if (dup) {
         return { label, ok: true, id: dup.value, name: payload.name, nota: "ya existia" };
       }
       return { label, ok: false, status: res.status, error: data };
     }
-
     const id =
-      data.fulfillmentPolicyId ||
-      data.paymentPolicyId ||
-      data.returnPolicyId ||
-      null;
-
+      data.fulfillmentPolicyId || data.paymentPolicyId || data.returnPolicyId || null;
     return { label, ok: true, id, name: payload.name };
   } catch (err) {
     return { label, ok: false, error: String(err) };
+  }
+}
+
+// Lee TODAS las politicas de un tipo y devuelve [{name, id}]
+async function listPolicies(endpoint, token, idField, listField) {
+  try {
+    const res = await fetch(
+      `${ACCOUNT_API}/${endpoint}?marketplace_id=${MARKETPLACE}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    const data = await res.json();
+    const arr = data[listField] || [];
+    return arr.map((p) => ({ name: p.name, id: p[idField] }));
+  } catch (err) {
+    return [];
   }
 }
 
@@ -156,33 +168,26 @@ export default async function handler(req, res) {
   try {
     const token = await getToken(code);
 
-    const results = [];
-
-    // 1) Opt-in primero (clave para pago y devoluciones)
-    const optResult = await optIn(token);
-    results.push(optResult);
-
-    // 2) Crear politicas
-    results.push(
-      await createPolicy("payment_policy", token, PAYMENT_POLICY, "pago")
-    );
-    results.push(
-      await createPolicy("return_policy", token, RETURN_POLICY, "devoluciones")
-    );
+    const acciones = [];
+    acciones.push(await optIn(token));
+    acciones.push(await createPolicy("payment_policy", token, PAYMENT_POLICY, "pago"));
+    acciones.push(await createPolicy("return_policy", token, RETURN_POLICY, "devoluciones"));
     for (const sp of SHIPPING_POLICIES) {
-      results.push(
-        await createPolicy("fulfillment_policy", token, sp, `envio ${sp.name}`)
-      );
+      acciones.push(await createPolicy("fulfillment_policy", token, sp, `envio ${sp.name}`));
     }
 
-    const ids = results
-      .filter((r) => r.ok && r.id)
-      .map((r) => ({ label: r.label, id: r.id, name: r.name }));
+    // Lectura final: la fuente de verdad de los IDs
+    const pago = await listPolicies("payment_policy", token, "paymentPolicyId", "paymentPolicies");
+    const devoluciones = await listPolicies("return_policy", token, "returnPolicyId", "returnPolicies");
+    const envios = await listPolicies("fulfillment_policy", token, "fulfillmentPolicyId", "fulfillmentPolicies");
 
     return res.status(200).json({
-      resumen: `${ids.length} politicas con ID`,
-      idsParaGuardar: ids,
-      detalleCompleto: results
+      TODOS_LOS_IDS: {
+        pago,
+        devoluciones,
+        envios
+      },
+      acciones
     });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
