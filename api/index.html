@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#e8590c" />
+<title>Listador eBay</title>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1410; --paper:#fbf6ee; --card:#fff; --amber:#e8590c;
+    --amber-soft:#fff0e6; --sage:#3d6b54; --border:#e7ddcf; --muted:#8a7d6c;
+    --display:'Fraunces',Georgia,serif; --body:'Outfit',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;background:var(--paper);font-family:var(--body);color:var(--ink);}
+  .wrap{max-width:540px;margin:0 auto;padding:22px 18px 60px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .fadeUp{animation:fadeUp .4s ease both;}
+  header{display:flex;align-items:center;gap:9px;margin-bottom:22px;}
+  .logo{width:38px;height:38px;border-radius:11px;background:var(--amber);display:grid;place-items:center;box-shadow:0 6px 16px rgba(232,89,12,.27);color:#fff;font-size:20px;}
+  h1{font-family:var(--display);font-size:25px;font-weight:700;margin:0;line-height:1;}
+  .sub{margin:3px 0 0;font-size:13px;color:var(--muted);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;}
+  .lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.02em;text-transform:uppercase;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+  .thumb img{width:100%;height:100%;object-fit:cover;}
+  .thumb button{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;cursor:pointer;}
+  .act{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:16px 12px;font-size:15px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;font-family:var(--body);}
+  .hint{margin:10px 2px 0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  select,textarea,input{font-family:var(--body);}
+  select{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);background:var(--paper);}
+  textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;resize:vertical;color:var(--ink);background:var(--paper);}
+  .gen{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:600;color:#fff;background:var(--amber);box-shadow:0 10px 24px rgba(232,89,12,.28);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;font-family:var(--body);}
+  .gen:disabled{background:#d8cdbd;box-shadow:none;cursor:default;}
+  .err{margin-top:16px;background:#fff4f0;border:1px solid #ffd3c2;border-radius:14px;padding:14px;display:flex;gap:10px;align-items:flex-start;}
+  .err strong{font-size:14px;color:#9c2a14;}
+  .err p{margin:3px 0 0;font-size:13.5px;color:#8a4030;}
+  .ok{margin-top:16px;background:#eef7f1;border:1px solid #bfe0cb;border-radius:14px;padding:14px;display:flex;gap:10px;align-items:flex-start;}
+  .ok strong{font-size:14px;color:#1f5b3a;}
+  .ok p{margin:3px 0 0;font-size:13.5px;color:#2f6b48;word-break:break-word;}
+  .field-h{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .field-h.warn{color:#c0341a;}
+  .chip{background:var(--amber-soft);color:#b8430a;border-radius:8px;padding:4px 9px;font-size:13px;font-weight:500;}
+  .spec{display:flex;gap:8px;font-size:14px;align-items:baseline;}
+  .spec .k{color:var(--muted);min-width:96px;font-weight:500;}
+  .resbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+  .primary{border:none;background:var(--ink);color:#fff;border-radius:14px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
+  .ghost{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:14px;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
+  .ebay{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:600;color:#fff;background:var(--sage);box-shadow:0 10px 24px rgba(61,107,84,.28);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;font-family:var(--body);margin-top:12px;}
+  .ebay:disabled{background:#b9cabf;box-shadow:none;cursor:default;}
+  .ed{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:10px;padding:7px 12px;font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--body);}
+  .ed.on{background:var(--ink);color:#fff;}
+  .edin{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;outline:none;color:var(--ink);background:var(--paper);font-family:var(--body);}
+  h2{font-family:var(--display);font-size:22px;font-weight:600;margin:0;}
+  .datein{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);background:var(--paper);font-family:var(--body);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🏷️</div>
+    <div>
+      <h1>Listador eBay</h1>
+      <p class="sub">Sube fotos · obtén el listado optimizado</p>
+    </div>
+  </header>
+
+  <section class="card fadeUp">
+    <label class="lbl">Fotos del producto (<span id="count">0</span>/16)</label>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="grid2">
+      <button class="act" id="btnCam">📷<span>Cámara</span></button>
+      <button class="act" id="btnGal">⬆️<span>Galería</span></button>
+    </div>
+    <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
+    <input id="inGal" type="file" accept="image/*" multiple hidden>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 10 primeras.</p>
+  </section>
+
+  <section class="card fadeUp" style="margin-top:16px">
+    <label class="lbl">Estado del producto</label>
+    <select id="cond">
+      <option>New with tags</option>
+      <option>New without tags</option>
+      <option>Pre-owned - Like new</option>
+      <option selected>Pre-owned - Good</option>
+      <option>Pre-owned - Acceptable</option>
+      <option>For parts or not working</option>
+    </select>
+    <label class="lbl" style="margin-top:14px">Notas extra (opcional)</label>
+    <textarea id="notes" rows="2" placeholder="Ej.: talla M, falta un botón, viene con caja original…"></textarea>
+  </section>
+
+  <div class="fadeUp" style="margin-top:18px">
+    <button class="gen" id="btnGen" disabled>✨ Generar listado</button>
+  </div>
+
+  <div id="errBox"></div>
+  <div id="result"></div>
+
+  <section class="card fadeUp" style="margin-top:16px">
+    <button id="btnToggleNotes" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;width:100%;font-family:var(--body);font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;font-size:13px">
+      <span>⚙️ Ajustes de notas fijas</span><span id="notesArrow">▾</span>
+    </button>
+    <div id="notesPanel" style="display:none;margin-top:14px">
+      <p class="hint" style="margin-top:0">Estas notas se añaden automáticamente arriba de la descripción de cada listado. Usa {word} para el tipo de prenda (blouse, dress…), {emoji} para su ícono y {isare} para "is/are". Se guardan en este dispositivo.</p>
+
+      <label class="lbl">Línea de condición</label>
+      <textarea id="naCondition" rows="2"></textarea>
+
+      <label class="lbl" style="margin-top:12px">Nota cuando está en maniquí</label>
+      <textarea id="naMannequin" rows="3"></textarea>
+
+      <label class="lbl" style="margin-top:12px">Nota cuando está en gancho / plano</label>
+      <textarea id="naHanger" rows="3"></textarea>
+
+      <label class="lbl" style="margin-top:12px">Notas comunes (una por línea)</label>
+      <textarea id="naCommon" rows="6"></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="primary" id="btnSaveNotes" style="flex:1;min-width:140px">💾 Guardar notas</button>
+        <button class="ghost" id="btnResetNotes" style="flex:1;min-width:140px">↩️ Restaurar por defecto</button>
+      </div>
+      <p id="notesSaved" class="hint" style="color:var(--sage);display:none;margin-bottom:0">✅ Notas guardadas en este dispositivo.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const MAX = 16;
+let images = []; // {id, dataUrl, mediaType, file}
+let listing = null;
+let editing = false;
+
+const $ = (id) => document.getElementById(id);
+
+// ====================================================================
+//  NOTAS FIJAS  (bloque que va ARRIBA de la descripción del listado)
+// ====================================================================
+const NOTES_VERSION = 3;
+
+const GARMENT_EMOJI = {
+  blouse:'👚', shorts:'🩳', dress:'👗', pants:'👖',
+  shoes:'👟', sweater:'🧥', bra:'👙', swimsuit:'👙', bag:'👜'
+};
+const GARMENT_WORD = {
+  blouse:'blouse', shorts:'short', dress:'dress', pants:'pants',
+  shoes:'shoes', sweater:'sweater', bra:'bra', swimsuit:'swimsuit', bag:'bag'
+};
+function isAre(g){ return g==='shoes' ? 'are' : 'is'; }
+
+const DEFAULT_NOTES = {
+  condition: '{emoji} The {word} {isare} used but in good condition.',
+  mannequin: '📌 Note: Images are for reference only to demonstrate fit and style. The actual {word} is the same as shown in the mannequin photos. Slight variations in color or details may occur due to lighting and screen settings.',
+  hanger:    '📌 Note: Images are for reference only to show fit and style. The actual {word} is the same as shown in the photos on the hanger. Slight variations in color or details may occur due to lighting and screen settings.',
+  common: [
+    '📸 The color may vary slightly due to lighting and photography.',
+    "📏 Measurements were taken with the garment laid out flat on a surface. It's recommended to compare with a similar garment to ensure the desired fit.",
+    '🚚 Ships next business day after payment.',
+    '🧼 The clothing was only steamed, so it may need to be washed before use.'
+  ]
+};
+
+function loadNotes(){
+  try{
+    const raw = localStorage.getItem('fixedNotes');
+    if(raw){
+      const saved = JSON.parse(raw);
+      if(saved && saved.v === NOTES_VERSION && saved.notes) return saved.notes;
+    }
+  }catch{}
+  return JSON.parse(JSON.stringify(DEFAULT_NOTES));
+}
+function saveNotes(notes){
+  try{ localStorage.setItem('fixedNotes', JSON.stringify({v:NOTES_VERSION, notes})); }catch{}
+}
+let fixedNotes = loadNotes();
+
+function buildFixedNotes(garment, display){
+  const g = (garment||'').toLowerCase();
+  const emoji = GARMENT_EMOJI[g] || '🏷️';
+  const word  = GARMENT_WORD[g]  || 'item';
+  const fill = (s)=> (s||'')
+    .replaceAll('{emoji}', emoji)
+    .replaceAll('{word}', word)
+    .replaceAll('{isare}', isAre(g));
+
+  const lines = [];
+  const disp = (display||'hanger').toLowerCase();
+  if(disp==='mannequin' && fixedNotes.mannequin) lines.push(fill(fixedNotes.mannequin));
+  else if(fixedNotes.hanger) lines.push(fill(fixedNotes.hanger));
+  if(fixedNotes.condition) lines.push(fill(fixedNotes.condition));
+  (fixedNotes.common||[]).forEach(c=>{ if(c && c.trim()) lines.push(fill(c)); });
+  return lines.join('\n\n');
+}
+
+// ---- Compresión de imágenes ----
+async function compress(file, maxPx, quality){
+  maxPx = maxPx || 900;
+  quality = quality || 0.72;
+  const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name||'');
+  if(isHeic && typeof heic2any !== 'undefined'){
+    try{
+      const out = await heic2any({ blob:file, toType:'image/jpeg', quality:0.85 });
+      file = new File([Array.isArray(out)?out[0]:out], (file.name||'foto')+'.jpg', {type:'image/jpeg'});
+    }catch(err){
+      throw new Error('No se pudo leer una foto del iPhone (HEIC). Prueba a tomar la foto en formato JPG o sube una captura de pantalla.');
+    }
+  }
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>reject(new Error('No se pudo leer la foto.'));
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = ()=>reject(new Error('No se pudo abrir una de las fotos. Intenta con otra.'));
+      img.onload = ()=>{
+        let {width,height}=img;
+        if(width>height && width>maxPx){height=height*maxPx/width;width=maxPx;}
+        else if(height>maxPx){width=width*maxPx/height;height=maxPx;}
+        const c=document.createElement('canvas');
+        c.width=Math.round(width);c.height=Math.round(height);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        resolve({dataUrl:c.toDataURL('image/jpeg',quality),mediaType:'image/jpeg'});
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addFiles(fileList){
+  for(const file of Array.from(fileList)){
+    const isImg = (file.type||'').startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(file.name||'');
+    if(!isImg) continue;
+    if(images.length>=MAX) break;
+    try{
+      const {dataUrl,mediaType}=await compress(file);
+      images.push({id:crypto.randomUUID(),dataUrl,mediaType,file});
+    }catch(err){
+      $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo añadir una foto</strong><p>${err.message}</p></div></div>`;
+    }
+  }
+  renderThumbs();
+}
+
+function payloadBytes(imgs){
+  return imgs.reduce((sum,i)=>sum + (i.dataUrl.split(',')[1]||'').length*0.75, 0);
+}
+
+async function fitPayload(){
+  const LIMIT = 3.6 * 1024 * 1024;
+  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5} ];
+  let working = images.map(i=>({...i}));
+  if(payloadBytes(working) <= LIMIT) return working;
+  for(const s of steps){
+    working = [];
+    for(const img of images){
+      if(img.file){
+        try{
+          const {dataUrl,mediaType}=await compress(img.file, s.px, s.q);
+          working.push({...img,dataUrl,mediaType});
+        }catch{ working.push({...img}); }
+      } else {
+        working.push({...img});
+      }
+    }
+    if(payloadBytes(working) <= LIMIT) return working;
+  }
+  return working;
+}
+
+function renderThumbs(){
+  const box=$('thumbs');
+  box.innerHTML='';
+  images.forEach((img)=>{
+    const d=document.createElement('div');
+    d.className='thumb';
+    d.innerHTML=`<img src="${img.dataUrl}"><button data-id="${img.id}">✕</button>`;
+    box.appendChild(d);
+  });
+  box.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{ images=images.filter(i=>i.id!==b.dataset.id); renderThumbs(); };
+  });
+  $('count').textContent=images.length;
+  $('btnGen').disabled = images.length===0;
+}
+
+$('btnCam').onclick=()=>$('inCam').click();
+$('btnGal').onclick=()=>$('inGal').click();
+$('inCam').onchange=(e)=>addFiles(e.target.files);
+$('inGal').onchange=(e)=>addFiles(e.target.files);
+
+// ---- Generar ----
+$('btnGen').onclick=async ()=>{
+  if(images.length===0) return;
+  const btn=$('btnGen');
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Analizando fotos…';
+  $('errBox').innerHTML='';
+  $('result').innerHTML='';
+
+  try{
+    const fitted = await fitPayload();
+    const toSend = fitted.slice(0, 10);
+    const res=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        images: toSend.map(i=>({data:i.dataUrl.split(',')[1], mediaType:i.mediaType})),
+        condition: $('cond').value,
+        extraNotes: $('notes').value,
+      }),
+    });
+    if(res.status===413){
+      throw new Error('Demasiadas fotos para enviar de una vez. Quita algunas (deja las 8–10 más importantes: prenda, etiqueta de marca, talla y la cinta métrica) e intenta de nuevo.');
+    }
+    let data;
+    try{ data=await res.json(); }
+    catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo en un momento.'); }
+    if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
+    listing=data;
+    editing=false;
+    renderResult();
+  }catch(err){
+    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo generar</strong><p>${err.message}</p></div></div>`;
+  }finally{
+    btn.disabled=images.length===0;
+    btn.innerHTML='✨ Generar listado';
+  }
+};
+
+// ---- Texto plano del listado ----
+function buildText(l){
+  const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
+  const notes=buildFixedNotes(l.garment, l.display);
+  const descBlock = (notes ? notes+'\n\n' : '') + (l.description||'');
+  return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${descBlock}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
+}
+
+// ---- Fecha por defecto para el agendado: +7 días a las 18:00 locales ----
+function defaultScheduleLocal(){
+  const d = new Date();
+  d.setDate(d.getDate()+7);
+  d.setHours(18,0,0,0);
+  // formato para input datetime-local: YYYY-MM-DDTHH:MM
+  const pad=(n)=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ---- Render del resultado ----
+function renderResult(){
+  const l=listing;
+  if(!l){$('result').innerHTML='';return;}
+  const tlen=(l.title||'').length;
+  const specsHtml=(l.item_specifics||[]).map((s,i)=>
+    editing
+    ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
+    : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
+  ).join('');
+
+  $('result').innerHTML=`
+    <section class="fadeUp" style="margin-top:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2>Tu listado</h2>
+        <button class="ed ${editing?'on':''}" id="btnEdit">✏️ ${editing?'Listo':'Editar'}</button>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div class="field-h ${tlen>80?'warn':''}">🏷️ Título (${tlen}/80)</div>
+          ${editing?`<input class="edin" id="edTitle" value="${(l.title||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:16px;font-weight:600;line-height:1.35">${l.title||''}</p>`}
+        </div>
+        <div>
+          <div class="field-h">📁 Categoría</div>
+          ${editing?`<input class="edin" id="edCat" value="${(l.category||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:14.5px">${l.category||''}</p>`}
+        </div>
+        ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
+        ${(()=>{const n=buildFixedNotes(l.garment,l.display);return n?`<div><div class="field-h">📌 Notas fijas (van arriba de la descripción)</div><p style="margin:0;font-size:13.5px;line-height:1.5;white-space:pre-wrap;background:var(--amber-soft);border:1px solid var(--border);border-radius:12px;padding:12px 14px">${n.replace(/</g,'&lt;')}</p></div>`:'';})()}
+        <div>
+          <div class="field-h">📝 Descripción</div>
+          ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
+        </div>
+        <div>
+          <div class="field-h">💲 Precio sugerido</div>
+          ${editing
+            ? `<div style="display:flex;align-items:center;gap:8px">
+                 <span style="font-size:16px;font-weight:600;color:var(--sage)">$</span>
+                 <input class="edin" id="edPmin" type="number" inputmode="decimal" value="${l.price_min}" style="width:90px">
+                 <span style="color:var(--muted)">–</span>
+                 <input class="edin" id="edPmax" type="number" inputmode="decimal" value="${l.price_max}" style="width:90px">
+                 <span style="font-size:13px;color:var(--muted)">USD</span>
+               </div>`
+            : `<p style="margin:0;font-size:18px;font-weight:700;color:var(--sage)">$${l.price_min} – $${l.price_max} <span style="font-size:13px;color:var(--muted);font-weight:500">USD</span></p>`}
+        </div>
+      </div>
+      <div class="resbtns">
+        <button class="primary" id="btnCopy">📋 Copiar todo</button>
+        <button class="ghost" id="btnShare">🔗 Compartir</button>
+        <button class="ghost" id="btnDl">⬇️ Descargar</button>
+        <button class="ghost" id="btnNew">🔄 Nuevo</button>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="field-h">📤 Publicar en eBay (agendado)</div>
+        <p class="hint" style="margin-top:0">Se publicará en eBay como listado programado. Solo tú lo verás en Seller Hub hasta la fecha elegida; entonces se activa solo. Se usa el precio máximo ($${l.price_max}).</p>
+        <label class="lbl" style="margin-top:10px">Fecha y hora de publicación</label>
+        <input type="datetime-local" id="schedDate" class="datein" value="${defaultScheduleLocal()}">
+        <button class="ebay" id="btnEbay">📤 Publicar en eBay (agendado)</button>
+        <div id="ebayMsg"></div>
+      </div>
+    </section>`;
+
+  $('btnEdit').onclick=()=>{ saveEdits(); editing=!editing; renderResult(); };
+  $('btnCopy').onclick=copyAll;
+  $('btnShare').onclick=shareIt;
+  $('btnDl').onclick=download;
+  $('btnNew').onclick=resetAll;
+  $('btnEbay').onclick=publishToEbay;
+}
+
+function saveEdits(){
+  if(!editing) return;
+  const t=$('edTitle'); if(t) listing.title=t.value;
+  const c=$('edCat'); if(c) listing.category=c.value;
+  const d=$('edDesc'); if(d) listing.description=d.value;
+  const pmin=$('edPmin'); if(pmin && pmin.value!=='') listing.price_min=Number(pmin.value);
+  const pmax=$('edPmax'); if(pmax && pmax.value!=='') listing.price_max=Number(pmax.value);
+  document.querySelectorAll('[data-spec]').forEach(inp=>{
+    listing.item_specifics[+inp.dataset.spec].value=inp.value;
+  });
+}
+
+// ---- PUBLICAR EN EBAY (agendado) ----
+async function publishToEbay(){
+  saveEdits();
+  const btn=$('btnEbay');
+  const msg=$('ebayMsg');
+  msg.innerHTML='';
+
+  // Validar fecha
+  const val=$('schedDate').value;
+  if(!val){
+    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>Falta la fecha</strong><p>Elige cuándo quieres que se publique.</p></div></div>`;
+    return;
+  }
+  // Convertir la fecha local elegida a UTC ISO (lo que eBay espera)
+  const localDate=new Date(val);
+  if(localDate.getTime() <= Date.now()){
+    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>Fecha en el pasado</strong><p>Elige una fecha y hora futuras.</p></div></div>`;
+    return;
+  }
+  const startDateUTC=localDate.toISOString().split('.')[0]+'Z';
+
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Publicando en eBay…';
+
+  try{
+    // Reusar las fotos comprimidas (las mismas que se enviaron a la IA)
+    const fitted = await fitPayload();
+    const imgs = fitted.slice(0,12).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
+
+    // Adjuntar las notas fijas ya armadas para que el backend las ponga en la descripción
+    const listingToSend = {
+      ...listing,
+      fixedNotes: buildFixedNotes(listing.garment, listing.display)
+    };
+
+    const res=await fetch('/api/ebay-publicar',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ listing: listingToSend, images: imgs, startDate: startDateUTC })
+    });
+    let data;
+    try{ data=await res.json(); }
+    catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo.'); }
+    if(!res.ok || !data.ok){
+      const detalle = data.error || 'No se pudo publicar.';
+      throw new Error(detalle);
+    }
+    const fechaTxt = new Date(startDateUTC).toLocaleString();
+    msg.innerHTML=`<div class="ok fadeUp">✅<div><strong>¡Listado agendado en eBay!</strong><p>Se activará el ${fechaTxt}. ID del listado: ${data.listingId}. Lo verás en tu Seller Hub como programado.</p></div></div>`;
+  }catch(err){
+    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo publicar</strong><p>${err.message}</p></div></div>`;
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='📤 Publicar en eBay (agendado)';
+  }
+}
+
+async function copyAll(){
+  saveEdits();
+  const txt=buildText(listing);
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta); }
+  const b=$('btnCopy'); b.innerHTML='✅ Copiado'; setTimeout(()=>b.innerHTML='📋 Copiar todo',1800);
+}
+async function shareIt(){
+  saveEdits();
+  const txt=buildText(listing);
+  if(navigator.share){ try{ await navigator.share({title:listing.title,text:txt}); }catch{} }
+  else copyAll();
+}
+function download(){
+  saveEdits();
+  const txt=buildText(listing);
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const safe=(listing.title||'listado').slice(0,40).replace(/[^\w]+/g,'-');
+  a.href=url;a.download=safe+'.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function resetAll(){
+  images=[];listing=null;editing=false;
+  $('notes').value='';
+  $('cond').selectedIndex=3;
+  renderThumbs();renderResult();$('errBox').innerHTML='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ---- Ajustes de notas fijas ----
+function fillNotesForm(){
+  $('naCondition').value = fixedNotes.condition || '';
+  $('naMannequin').value = fixedNotes.mannequin || '';
+  $('naHanger').value    = fixedNotes.hanger || '';
+  $('naCommon').value    = (fixedNotes.common || []).join('\n');
+}
+fillNotesForm();
+
+$('btnToggleNotes').onclick=()=>{
+  const p=$('notesPanel');
+  const open = p.style.display==='none';
+  p.style.display = open ? 'block' : 'none';
+  $('notesArrow').textContent = open ? '▴' : '▾';
+};
+
+$('btnSaveNotes').onclick=()=>{
+  fixedNotes = {
+    condition: $('naCondition').value.trim(),
+    mannequin: $('naMannequin').value.trim(),
+    hanger:    $('naHanger').value.trim(),
+    common:    $('naCommon').value.split('\n').map(s=>s.trim()).filter(Boolean)
+  };
+  saveNotes(fixedNotes);
+  const m=$('notesSaved'); m.textContent='✅ Notas guardadas en este dispositivo.'; m.style.display='block'; setTimeout(()=>m.style.display='none',2200);
+  if(listing) renderResult();
+};
+
+$('btnResetNotes').onclick=()=>{
+  fixedNotes = JSON.parse(JSON.stringify(DEFAULT_NOTES));
+  saveNotes(fixedNotes);
+  fillNotesForm();
+  const m=$('notesSaved'); m.textContent='↩️ Notas restauradas a las de fábrica.'; m.style.display='block'; setTimeout(()=>m.style.display='none',2200);
+  if(listing) renderResult();
+};
+</script>
+</body>
+</html>
