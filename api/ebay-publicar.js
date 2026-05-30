@@ -122,12 +122,33 @@ async function subirFoto(token, base64, mediaType) {
 }
 
 // Construye los aspects RELLENANDO los obligatorios de ropa si faltan.
+// Tambien RECORTA cualquier valor a 65 caracteres (limite de eBay).
 function toAspects(specs, garment) {
   const aspects = {};
+  const limpia = (v) => {
+    let s = String(v).trim();
+    // eBay permite max 65 caracteres por valor de item specific
+    if (s.length > 65) {
+      // Si es una lista separada por comas, tomar solo lo que quepa
+      if (s.includes(",")) {
+        const partes = s.split(",").map((p) => p.trim());
+        let acc = "";
+        for (const p of partes) {
+          const intento = acc ? acc + ", " + p : p;
+          if (intento.length > 65) break;
+          acc = intento;
+        }
+        s = acc || partes[0].slice(0, 65);
+      } else {
+        s = s.slice(0, 65);
+      }
+    }
+    return s;
+  };
   (specs || []).forEach((s) => {
     if (!s || !s.label || !s.value) return;
     if (s.value === "—") return;
-    aspects[s.label] = [String(s.value)];
+    aspects[s.label] = [limpia(s.value)];
   });
   // Rellenos seguros para evitar error 25002 (campos obligatorios de ropa)
   if (!aspects["Brand"]) aspects["Brand"] = ["Unbranded"];
