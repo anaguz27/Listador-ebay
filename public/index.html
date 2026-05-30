@@ -410,6 +410,7 @@ function renderResult(){
         <p class="hint" style="margin-top:0">Se publicará en eBay como listado programado. Solo tú lo verás en Seller Hub hasta la fecha elegida; entonces se activa solo. Se usa el precio máximo ($${l.price_max}).</p>
         <label class="lbl" style="margin-top:10px">Fecha y hora de publicación</label>
         <input type="datetime-local" id="schedDate" class="datein" value="${defaultScheduleLocal()}">
+        <p class="hint" style="margin-top:6px;font-size:12.5px">🕐 La hora que elijas es tu hora local (${Intl.DateTimeFormat().resolvedOptions().timeZone}). El listado se activará a esa hora tuya.</p>
         <button class="ebay" id="btnEbay">📤 Publicar en eBay (agendado)</button>
         <div id="ebayMsg"></div>
       </div>
@@ -479,13 +480,21 @@ async function publishToEbay(){
     try{ data=await res.json(); }
     catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo.'); }
     if(!res.ok || !data.ok){
-      const detalle = data.error || 'No se pudo publicar.';
+      let detalle = data.error || 'No se pudo publicar.';
+      // Mostrar el detalle crudo de eBay para diagnosticar
+      if(data.errorDetalle) detalle += '\n\nDETALLE: ' + data.errorDetalle;
+      // Si hay pasos, mostrar el primero que falló
+      if(Array.isArray(data.pasos)){
+        const fail = data.pasos.find(p=>p.ok===false);
+        if(fail) detalle += '\n\nPASO QUE FALLÓ: ' + fail.paso + ' [' + (fail.status||'') + ']\n' + JSON.stringify(fail.error).slice(0,400);
+      }
       throw new Error(detalle);
     }
-    const fechaTxt = new Date(startDateUTC).toLocaleString();
-    msg.innerHTML=`<div class="ok fadeUp">✅<div><strong>¡Listado agendado en eBay!</strong><p>Se activará el ${fechaTxt}. ID del listado: ${data.listingId}. Lo verás en tu Seller Hub como programado.</p></div></div>`;
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const fechaTxt = new Date(startDateUTC).toLocaleString('es-MX',{dateStyle:'long',timeStyle:'short'});
+    msg.innerHTML=`<div class="ok fadeUp">✅<div><strong>¡Listado agendado en eBay!</strong><p>Se activará el <strong>${fechaTxt}</strong> (tu hora, ${tz}). ID del listado: ${data.listingId}. Lo verás en tu Seller Hub como programado.</p></div></div>`;
   }catch(err){
-    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo publicar</strong><p>${err.message}</p></div></div>`;
+    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo publicar</strong><p style="white-space:pre-wrap">${err.message}</p></div></div>`;
   }finally{
     btn.disabled=false;
     btn.innerHTML='📤 Publicar en eBay (agendado)';
