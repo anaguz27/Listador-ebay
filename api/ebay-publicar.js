@@ -15,7 +15,7 @@ const INVENTORY_API = "https://api.sandbox.ebay.com/sell/inventory/v1";
 const MEDIA_API = "https://apim.sandbox.ebay.com/commerce/media/v1_beta";
 
 const MARKETPLACE = "EBAY_US";
-const MAX_FOTOS = 8;
+const MAX_FOTOS = 6;
 
 const POLICY_PAGO = "6229043000";
 const POLICY_DEVOLUCIONES = "6229044000";
@@ -99,23 +99,47 @@ function H(token) {
   };
 }
 
+// Sube UNA foto a EPS y obtiene su URL PUBLICA real.
+// Paso 1: create_image_from_file -> devuelve image_id en header Location
+// Paso 2: getImage(image_id) -> devuelve la URL publica de EPS (la valida para listar)
+// Nota: el header Location es la URI del API, NO sirve para listar. Hay que pedir getImage.
 async function subirFoto(token, base64, mediaType) {
   try {
     const bin = Buffer.from(base64, "base64");
     const blob = new Blob([bin], { type: mediaType || "image/jpeg" });
     const form = new FormData();
     form.append("image", blob, "foto.jpg");
+
     const r = await fetch(`${MEDIA_API}/image/create_image_from_file`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       body: form
     });
-    if (r.status === 201) {
-      const loc = r.headers.get("location") || "";
-      return { ok: true, url: loc };
+
+    if (r.status !== 201) {
+      const txt = await r.text().catch(() => "");
+      return { ok: false, status: r.status, error: txt.slice(0, 400) };
     }
-    const txt = await r.text().catch(() => "");
-    return { ok: false, status: r.status, error: txt.slice(0, 400) };
+
+    // Sacar el image_id del header Location
+    const loc = r.headers.get("location") || "";
+    const imageId = loc.split("/image/")[1] || loc.split("/").pop();
+    if (!imageId) return { ok: false, error: "No se obtuvo image_id" };
+
+    // getImage para la URL publica real
+    const g = await fetch(`${MEDIA_API}/image/${imageId}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+    });
+    const gd = await g.json().catch(() => ({}));
+    // La URL publica puede venir en distintos campos segun version
+    const url =
+      gd?.imageUrl ||
+      (Array.isArray(gd?.imageUrls) ? (gd.imageUrls[0]?.imageUrl || gd.imageUrls[0]) : null) ||
+      gd?.image?.imageUrl ||
+      null;
+
+    if (!url) return { ok: false, status: g.status, error: "getImage sin URL: " + JSON.stringify(gd).slice(0, 300) };
+    return { ok: true, url };
   } catch (err) {
     return { ok: false, error: "excepcion: " + String(err) };
   }
