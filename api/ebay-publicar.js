@@ -1,9 +1,9 @@
-// api/ebay-publicar.js  — Fase 4 v4: arregla el TIMEOUT (502)
-// Cambios clave:
-//  - maxDuration 60s (mas tiempo para la funcion)
-//  - sube fotos EN PARALELO (no una por una)
-//  - NO hace la segunda llamada getImage: usa la URL del header Location directo
-//  - limita a 8 fotos para ir mas rapido
+// api/ebay-publicar.js  — Fase 4 v5: publish ROBUSTO
+// Cambios v5:
+//  - Rellena automaticamente los item specifics OBLIGATORIOS de ropa si faltan
+//    (Brand, Department, Type, Color, Size, Size Type) -> evita error 25002
+//  - Mantiene fotos en paralelo + maxDuration 60 (timeout ya resuelto)
+//  - Devuelve el error CRUDO de eBay del paso publish en errorDetalle
 
 export const config = {
   api: { bodyParser: { sizeLimit: "10mb" } },
@@ -40,6 +40,16 @@ function categoriaPorPrenda(garment) {
     sweater: "63866", shoes: "3034", bag: "169291", swimsuit: "63867", bra: "163225"
   };
   return cats[g] || "53159";
+}
+
+// Tipo "por defecto" segun la prenda, para el item specific "Type"
+function tipoPorPrenda(garment) {
+  const g = (garment || "").toLowerCase();
+  const tipos = {
+    blouse: "Blouse", dress: "Dress", pants: "Pants", shorts: "Shorts",
+    sweater: "Sweater", shoes: "Shoes", bag: "Handbag", swimsuit: "Swimwear", bra: "Bra"
+  };
+  return tipos[g] || "Top";
 }
 
 function nuevoSku() { return "APP-" + Date.now(); }
@@ -89,22 +99,18 @@ function H(token) {
   };
 }
 
-// Sube UNA foto a EPS. Usa la URL del header Location directo (sin getImage).
 async function subirFoto(token, base64, mediaType) {
   try {
     const bin = Buffer.from(base64, "base64");
     const blob = new Blob([bin], { type: mediaType || "image/jpeg" });
     const form = new FormData();
     form.append("image", blob, "foto.jpg");
-
     const r = await fetch(`${MEDIA_API}/image/create_image_from_file`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       body: form
     });
-
     if (r.status === 201) {
-      // La URL publica EPS viene en el header Location
       const loc = r.headers.get("location") || "";
       return { ok: true, url: loc };
     }
@@ -115,13 +121,20 @@ async function subirFoto(token, base64, mediaType) {
   }
 }
 
-function toAspects(specs) {
+// Construye los aspects RELLENANDO los obligatorios de ropa si faltan.
+function toAspects(specs, garment) {
   const aspects = {};
   (specs || []).forEach((s) => {
     if (!s || !s.label || !s.value) return;
     if (s.value === "—") return;
     aspects[s.label] = [String(s.value)];
   });
+  // Rellenos seguros para evitar error 25002 (campos obligatorios de ropa)
+  if (!aspects["Brand"]) aspects["Brand"] = ["Unbranded"];
+  if (!aspects["Department"]) aspects["Department"] = ["Women"];
+  if (!aspects["Type"]) aspects["Type"] = [tipoPorPrenda(garment)];
+  if (!aspects["Color"]) aspects["Color"] = ["Multicolor"];
+  if (!aspects["Size"]) aspects["Size"] = ["One Size"];
   if (!aspects["Size Type"]) aspects["Size Type"] = ["Regular"];
   return aspects;
 }
@@ -139,7 +152,7 @@ export default async function handler(req, res) {
     const token = await getAccessToken();
     pasos.push({ paso: "0-token", ok: true });
 
-    // 1) Subir fotos EN PARALELO (clave para no exceder el tiempo)
+    // 1) Subir fotos EN PARALELO
     const aSubir = images.slice(0, MAX_FOTOS);
     const resultados = await Promise.all(
       aSubir.map((img) => subirFoto(token, img.data, img.mediaType))
@@ -147,7 +160,7 @@ export default async function handler(req, res) {
     const urls = [];
     const erroresFoto = [];
     resultados.forEach((r, i) => {
-      pasos.push({ paso: `1-foto-${i + 1}`, ok: r.ok, url: r.url, status: r.status, error: r.error });
+      pasos.push({ paso: `1-foto-${i + 1}`, ok: r.ok, status: r.status, error: r.error });
       if (r.ok && r.url) urls.push(r.url);
       else erroresFoto.push(`foto ${i + 1}: [${r.status}] ${r.error}`);
     });
@@ -159,10 +172,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2) Inventory item
+    // 2) Inventory item (con aspects rellenados)
     const sku = nuevoSku();
     const descBlock =
       (listing.fixedNotes ? listing.fixedNotes + "\n\n" : "") + (listing.description || "");
+    const aspects = toAspects(listing.item_specifics, listing.garment);
     const itemRes = await fetch(`${INVENTORY_API}/inventory_item/${sku}`, {
       method: "PUT",
       headers: H(token),
@@ -172,7 +186,7 @@ export default async function handler(req, res) {
         product: {
           title: (listing.title || "").slice(0, 80),
           description: descBlock,
-          aspects: toAspects(listing.item_specifics),
+          aspects,
           imageUrls: urls
         }
       })
@@ -180,7 +194,7 @@ export default async function handler(req, res) {
     if (itemRes.status !== 200 && itemRes.status !== 204) {
       const e = await itemRes.json().catch(() => ({}));
       pasos.push({ paso: "2-item", ok: false, status: itemRes.status, error: e });
-      return res.status(502).json({ error: "Fallo al crear el item", pasos });
+      return res.status(502).json({ error: "Fallo al crear el item", errorDetalle: JSON.stringify(e).slice(0,400), pasos });
     }
     pasos.push({ paso: "2-item", ok: true, sku });
 
@@ -210,7 +224,7 @@ export default async function handler(req, res) {
     const ofData = await ofRes.json().catch(() => ({}));
     if (ofRes.status !== 200 && ofRes.status !== 201) {
       pasos.push({ paso: "3-oferta", ok: false, status: ofRes.status, error: ofData });
-      return res.status(502).json({ error: "Fallo al crear la oferta", pasos });
+      return res.status(502).json({ error: "Fallo al crear la oferta", errorDetalle: JSON.stringify(ofData).slice(0,400), pasos });
     }
     const offerId = ofData.offerId;
     pasos.push({ paso: "3-oferta", ok: true, offerId, fecha });
@@ -223,7 +237,11 @@ export default async function handler(req, res) {
     const pubData = await pubRes.json().catch(() => ({}));
     if (pubRes.status !== 200 && pubRes.status !== 201) {
       pasos.push({ paso: "4-publicar", ok: false, status: pubRes.status, error: pubData });
-      return res.status(502).json({ error: "Fallo al publicar", pasos });
+      return res.status(502).json({
+        error: "Fallo al publicar",
+        errorDetalle: JSON.stringify(pubData).slice(0, 500),
+        pasos
+      });
     }
     pasos.push({ paso: "4-publicar", ok: true, listingId: pubData.listingId });
 
