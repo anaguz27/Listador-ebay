@@ -1,13 +1,12 @@
-// api/ebay-publish-test.js  — Fase 3, publicar la oferta de prueba
+// api/ebay-publish-test.js  — Fase 3, publicar la oferta de prueba (v2)
 // Publica el offerId creado en el paso anterior (publishOffer).
-// Aqui eBay valida TODO; si falta algun item specific, el log lo dira.
+// v2: el publish va SOLO con el token, sin headers de idioma (eBay los rechaza aqui).
 // Uso: login OAuth, copiar ?code= fresco y pegarlo en:
 //   /api/ebay-publish-test?code=EL_CODIGO   (dentro de 5 min)
 
 const EBAY_OAUTH = "https://api.sandbox.ebay.com/identity/v1/oauth2/token";
 const INVENTORY_API = "https://api.sandbox.ebay.com/sell/inventory/v1";
 
-// offerId creado en la Fase 3 (paso anterior)
 const OFFER_ID = "11115828010";
 
 async function getToken(code) {
@@ -40,8 +39,7 @@ async function publicar(token) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "Content-Language": "en-US"
+          Authorization: `Bearer ${token}`
         }
       }
     );
@@ -68,7 +66,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       resumen: resultado.ok
         ? `LISTADO PUBLICADO. listingId: ${resultado.listingId}`
-        : "La publicacion fallo: revisa el detalle (probablemente item specifics)",
+        : "La publicacion fallo: revisa el detalle",
       offerId: OFFER_ID,
       resultado
     });
