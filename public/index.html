@@ -1,8 +1,8 @@
-<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, <!DOCTYPE html>
+initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#e8590c" />
 <title>Listador eBay</title>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -54,6 +54,8 @@
   .ghost{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:14px;padding:14px;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--body);}
   .ebay{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:600;color:#fff;background:var(--sage);box-shadow:0 10px 24px rgba(61,107,84,.28);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;font-family:var(--body);margin-top:12px;}
   .ebay:disabled{background:#b9cabf;box-shadow:none;cursor:default;}
+  .draft{width:100%;border:1px solid var(--sage);background:#fff;color:var(--sage);border-radius:16px;padding:15px;font-size:15.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;font-family:var(--body);margin-top:10px;}
+  .draft:disabled{border-color:#cfdbd3;color:#9bb0a4;cursor:default;}
   .ed{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:10px;padding:7px 12px;font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--body);}
   .ed.on{background:var(--ink);color:#fff;}
   .edin{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;outline:none;color:var(--ink);background:var(--paper);font-family:var(--body);}
@@ -80,7 +82,7 @@
     </div>
     <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
     <input id="inGal" type="file" accept="image/*" multiple hidden>
-    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 10 primeras.</p>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 6 primeras.</p>
   </section>
 
   <section class="card fadeUp" style="margin-top:16px">
@@ -307,7 +309,7 @@ $('btnGen').onclick=async ()=>{
 
   try{
     const fitted = await fitPayload();
-    const toSend = fitted.slice(0, 10);
+    const toSend = fitted.slice(0, 6);
     const res=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -318,7 +320,7 @@ $('btnGen').onclick=async ()=>{
       }),
     });
     if(res.status===413){
-      throw new Error('Demasiadas fotos para enviar de una vez. Quita algunas (deja las 8–10 más importantes: prenda, etiqueta de marca, talla y la cinta métrica) e intenta de nuevo.');
+      throw new Error('Demasiadas fotos para enviar de una vez. Quita algunas (deja las 6 más importantes: prenda, etiqueta de marca, talla y la cinta métrica) e intenta de nuevo.');
     }
     let data;
     try{ data=await res.json(); }
@@ -406,9 +408,13 @@ function renderResult(){
       </div>
 
       <div class="card" style="margin-top:14px">
-        <div class="field-h">📤 Publicar en eBay (agendado)</div>
-        <p class="hint" style="margin-top:0">Se publicará en eBay como listado programado. Solo tú lo verás en Seller Hub hasta la fecha elegida; entonces se activa solo. Se usa el precio máximo ($${l.price_max}).</p>
-        <label class="lbl" style="margin-top:10px">Fecha y hora de publicación</label>
+        <div class="field-h">📤 Publicar en eBay</div>
+        <p class="hint" style="margin-top:0">Dos opciones: <strong>Guardar en borrador</strong> deja el listado sin publicar en tu Seller Hub para revisarlo. <strong>Publicar agendado</strong> lo activa solo en la fecha que elijas. En ambos casos se usa el precio máximo ($${l.price_max}).</p>
+
+        <button class="draft" id="btnDraft">📝 Guardar en borrador (sin publicar)</button>
+        <div id="draftMsg"></div>
+
+        <label class="lbl" style="margin-top:16px">Fecha y hora de publicación (agendado)</label>
         <input type="datetime-local" id="schedDate" class="datein" value="${defaultScheduleLocal()}">
         <p class="hint" style="margin-top:6px;font-size:12.5px">🕐 La hora que elijas es tu hora local (${Intl.DateTimeFormat().resolvedOptions().timeZone}). El listado se activará a esa hora tuya.</p>
         <button class="ebay" id="btnEbay">📤 Publicar en eBay (agendado)</button>
@@ -422,6 +428,7 @@ function renderResult(){
   $('btnDl').onclick=download;
   $('btnNew').onclick=resetAll;
   $('btnEbay').onclick=publishToEbay;
+  $('btnDraft').onclick=saveToDraft;
 }
 
 function saveEdits(){
@@ -434,6 +441,53 @@ function saveEdits(){
   document.querySelectorAll('[data-spec]').forEach(inp=>{
     listing.item_specifics[+inp.dataset.spec].value=inp.value;
   });
+}
+
+// ---- GUARDAR EN BORRADOR (sin publicar) ----
+async function saveToDraft(){
+  saveEdits();
+  const btn=$('btnDraft');
+  const msg=$('draftMsg');
+  msg.innerHTML='';
+
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Guardando borrador…';
+
+  try{
+    // Reusar las fotos comprimidas (las mismas que se enviaron a la IA)
+    const fitted = await fitPayload();
+    const imgs = fitted.slice(0,6).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
+
+    // Adjuntar las notas fijas ya armadas para que el backend las ponga en la descripción
+    const listingToSend = {
+      ...listing,
+      fixedNotes: buildFixedNotes(listing.garment, listing.display)
+    };
+
+    const res=await fetch('/api/ebay-draft',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ listing: listingToSend, images: imgs })
+    });
+    let data;
+    try{ data=await res.json(); }
+    catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo.'); }
+    if(!res.ok || !data.ok){
+      let detalle = data.error || 'No se pudo guardar el borrador.';
+      if(data.errorDetalle) detalle += '\n\nDETALLE: ' + data.errorDetalle;
+      if(Array.isArray(data.pasos)){
+        const fail = data.pasos.find(p=>p.ok===false);
+        if(fail) detalle += '\n\nPASO QUE FALLÓ: ' + fail.paso + ' [' + (fail.status||'') + ']\n' + JSON.stringify(fail.error).slice(0,400);
+      }
+      throw new Error(detalle);
+    }
+    msg.innerHTML=`<div class="ok fadeUp">✅<div><strong>¡Borrador guardado en eBay!</strong><p>Lo verás en tu Seller Hub como borrador para revisarlo y publicarlo cuando quieras. SKU: ${data.sku}. Fotos subidas: ${data.fotos}.</p></div></div>`;
+  }catch(err){
+    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo guardar el borrador</strong><p style="white-space:pre-wrap">${err.message}</p></div></div>`;
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='📝 Guardar en borrador (sin publicar)';
+  }
 }
 
 // ---- PUBLICAR EN EBAY (agendado) ----
