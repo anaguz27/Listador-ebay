@@ -27,9 +27,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No se recibieron imágenes." });
     }
 
-    // Enviar a la IA como máximo las primeras 10 fotos (las más importantes).
-    // El usuario puede subir hasta 16, pero solo las primeras 10 van al modelo.
-    const imagesForAI = images.slice(0, 10);
+    // Enviar a la IA como máximo las primeras 6 fotos (las más importantes).
+    // El usuario puede subir hasta 16, pero solo las primeras 6 van al modelo.
+    const imagesForAI = images.slice(0, 6);
 
     // Construir el contenido del mensaje: imágenes + instrucción
     const content = [];
@@ -69,6 +69,18 @@ DETECT HOW IT IS DISPLAYED: Decide if the item is photographed on a mannequin/bo
 
 ABSOLUTE RULE — NEVER INVENT ANYTHING: Every value you output must come from what you can actually SEE in the photos (the garment itself, the brand/care/size tags) or MEASURE from a tape measure visible in the photos. You must NOT guess, estimate, infer or invent any value. If you cannot clearly see or read it, you OMIT that field. Do NOT use "(verify)" guesses. Do NOT fabricate a style, length, leg shape, material, color, brand or size that you cannot actually confirm from the image. An omitted field is ALWAYS better than a guessed one. This rule overrides every other instruction below.
 
+MAXIMIZE COMPLETED SPECIFICS (without inventing): eBay's Cassini strongly favors listings with MANY accurate item specifics. The seller always photographs the garment from several angles AND includes a clear photo of the brand/composition/care label. So you are EXPECTED to fill a high number of fields here — work hard, examine every photo carefully, and fill EVERY field you can genuinely confirm by looking. Do not be lazy and leave easy fields blank: Color, Pattern, Neckline, Sleeve Type, Sleeve Length, Style, Closure, Department and Type are almost always visible on a photographed garment and should normally be filled. The only fields you skip are the ones you truly cannot see or read. Confirming something you can clearly see is NOT inventing — leaving a clearly visible feature blank is the mistake to avoid.
+
+READ THE LABEL CAREFULLY — MATERIAL, CARE, AND ORIGIN: One of the photos shows the garment's brand/composition/care label up close. Find that photo and read it as precisely as you can, transcribing exactly what is printed:
+- "Material" (Fabric Type): transcribe the EXACT fiber composition printed on the label, including percentages, in eBay's usual format (e.g. "96% Polyester, 4% Elastane" or "100% Cotton"). If several fibers are listed, include them all in order. Only if the composition is genuinely unreadable do you omit Material.
+- "Garment Care": read the care instructions or care symbols on the label and report them in eBay terms (e.g. "Machine Washable", "Hand Wash", "Dry Clean Only", "Tumble Dry"). If the care line is unreadable, omit it.
+- "Country of Origin": read the "Made in ___" line on the label and use that country exactly (e.g. "Jordan", "Vietnam", "China"). If there is no readable "Made in" line, omit it.
+Read the smallest print you can. These three label fields matter a lot to buyers, so make a real effort before giving up on any of them.
+
+SLEEVE — ALWAYS CHARACTERIZE WHEN VISIBLE: For any top, blouse, dress, sweater or shirt, the sleeves are visible in the photos, so you should normally fill BOTH:
+- "Sleeve Length": one of Sleeveless, Short Sleeve, 3/4 Sleeve, Long Sleeve, Cap Sleeve — based on what you see.
+- "Sleeve Type": the sleeve cut/style you can see (e.g. Classic/Fitted Sleeve, Dolman, Bell Sleeve, Puff Sleeve, Raglan, Flutter, Bishop). Choose the one that matches the visible sleeve. Omit only if the sleeve shape is genuinely not visible.
+
 SIZE: Try hard to read the size from the size tag in the photos. If you can read it, put it in the title and in the "Size" item specific. If you genuinely CANNOT read a size anywhere in the photos, set the "Size" item specific value to "—" (an em dash) and do NOT put any size in the title. Never invent or estimate a size.
 
 CASSINI TITLE STRATEGY: Use as many of the 80 characters as possible without going over, using ONLY information you actually see. Front-load the highest-traffic search keywords (what a real buyer would type). Order: Brand + Department (Women's/Men's/Girls'/Boys'/Plus Size) + Item Type + key descriptors you can confirm (Color, Material, Style, Fit) + Size (only if you read it). Use natural buyer search terms, no punctuation, no filler words like "beautiful" or "nice", no ALL CAPS spam. Do not pad the title with descriptors you cannot confirm.
@@ -96,12 +108,12 @@ All measurements must be reported in INCHES. If a tape shows centimeters, conver
    - If there is NO readable tape measure for the leg opening, OMIT "Leg Style" entirely. Do NOT guess it from the photo and do NOT add "(verify)".
 - Country of Origin: only if the "Made in ___" line is readable on the brand/care tag; otherwise omit.
 - Occasion: only a realistic, clearly-supported use (e.g. Casual, Travel, Workwear, Party/Cocktail, Beach, Vacation); if unsure, omit.
-- Theme: ONLY if you can confidently base it on the garment's actual visible style — put at least 5 style/search words a real buyer would type, separated by commas (e.g. "Vintage, Western, Casual, Everyday, Retro"). If you cannot confidently characterize the style, omit Theme. Never invent unrelated themes.
+- Theme: include this whenever you can characterize the garment's visible style — which is almost always possible from a clear photo. Provide AT LEAST 5 style/search words a real buyer would type, separated by commas, based on the actual visible style (e.g. "Classic, Office, Career, Work, Business, Casual"). Only omit Theme if the style is genuinely impossible to characterize. Never invent unrelated themes, but do make the real effort to give 5 or more fitting style words.
 - Garment Care: only if readable on the care tag (e.g. Machine Washable, Hand Wash, Dry Clean Only); otherwise omit.
 Always include Brand, Department, Type and Condition when visible. Include Size per the SIZE rule above (use "—" if unreadable). Then add every other field you can actually confirm.
 
 OUTPUT ORDER OF item_specifics — VERY IMPORTANT: Return the item_specifics array in EXACTLY this eBay order, including only the fields you can confirm (skip the rest, keep the relative order):
-Brand, Size Type, Style, Dress Length, Color, Department, Size, Type, Sleeve Length, Pattern, Occasion, Material, Theme, Neckline, Fabric Type, Character, Vintage, Season, Sleeve Type, Closure, Waist Size, Inseam, Leg Style, Rise, Accents, Features, Country of Origin, Handmade, Personalize, Garment Care, California Prop 65 Warning, Fabric Weight, Heel Height, Condition.
+Brand, Size Type, Size, Color, Department, Type, Style, Sleeve Type, Material, Neckline, Sleeve Length, Accents, Pattern, Theme, Features, Fabric Type, Character, Fit, Vintage, Dress Length, Waist Size, Inseam, Leg Style, Rise, Occasion, Closure, Season, Strap Type, Country of Origin, Handmade, Personalize, Garment Care, California Prop 65 Warning, Fabric Weight, Heel Height, MPN, Unit Quantity, Unit Type, UPC, Condition.
 (The app will also re-sort them into this order, but please output them already in this order.)
 
 Create a complete, ready-to-publish eBay listing as a JSON object with exactly this shape:
@@ -124,11 +136,11 @@ Create a complete, ready-to-publish eBay listing as a JSON object with exactly t
   "price_max": number
 }
 
-The item_specifics array above shows only a few example fields. ADD as many of these additional labels as you can ACTUALLY CONFIRM for this exact item (omit any you are unsure of), keeping the eBay output order described above: Size Type, Style, Dress Length, Sleeve Length, Sleeve Type, Pattern, Neckline, Waist Size, Inseam, Leg Style, Rise, Closure, Fabric Type, Features, Accents, Occasion, Theme, Season, Country of Origin, Vintage, Garment Care, Heel Height (shoes). The more accurate specifics, the better — but never invent.
+The item_specifics array above shows only a few example fields. ADD as many of these additional labels as you can ACTUALLY CONFIRM for this exact item (omit any you are unsure of), keeping the eBay output order described above: Size Type, Style, Sleeve Type, Sleeve Length, Material, Neckline, Pattern, Theme, Accents, Features, Fabric Type, Character, Fit, Dress Length, Waist Size, Inseam, Leg Style, Rise, Occasion, Closure, Season, Strap Type, Country of Origin, Vintage, Garment Care, Heel Height (shoes). The more accurate specifics, the better — but never invent.
 
 For price_min and price_max: estimate the realistic SOLD price range in USD for this item in this condition on eBay, as an experienced reseller would, considering the brand's resale demand, item type and condition. Give a sensible range (not too wide).
 
-REMINDER: Never invent. If you cannot read or see a field, OMIT it (or use "—" only for Size). No "(verify)" values. The "Theme" item specific, when included, must contain at least 5 comma-separated buyer search words based on the real visible style.`,
+REMINDER: Never invent. If you cannot read or see a field, OMIT it (or use "—" only for Size). No "(verify)" values. But DO make the real effort to read the label (Material, Garment Care, Country of Origin), to characterize the sleeves, and to give at least 5 Theme words — these are visible/readable on the seller's photos and should normally be filled. The "Theme" item specific, when included, must contain at least 5 comma-separated buyer search words based on the real visible style.`,
     });
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -173,37 +185,43 @@ REMINDER: Never invent. If you cannot read or see a field, OMIT it (or use "—"
   }
 }
 
-// Orden oficial de Item Specifics de eBay (categoría ropa de mujer),
-// tomado del flujo real de venta de eBay. Los campos que la IA devuelva
-// se reordenan según esta lista; cualquier campo no listado se coloca al
-// final, conservando su orden relativo.
+// Orden oficial de Item Specifics de eBay (categoría ropa de mujer / blusas),
+// tomado del flujo real de venta de eBay (capturas del vendedor). Los campos
+// que la IA devuelva se reordenan según esta lista; cualquier campo no listado
+// se coloca al final, conservando su orden relativo.
 const EBAY_SPEC_ORDER = [
+  // Obligatorio
   "Brand",
   "Size Type",
-  "Style",
-  "Dress Length",
+  "Size",
   "Color",
   "Department",
-  "Size",
   "Type",
-  "Sleeve Length",
-  "Pattern",
-  "Occasion",
+  // Recomendadas
+  "Style",
+  "Sleeve Type",
   "Material",
-  "Theme",
   "Neckline",
+  "Sleeve Length",
+  "Accents",
+  "Pattern",
+  "Theme",
+  "Features",
   "Fabric Type",
   "Character",
+  "Fit",
   "Vintage",
-  "Season",
-  "Sleeve Type",
-  "Closure",
+  // Medidas (cuando aplican: vestidos / pantalones)
+  "Dress Length",
   "Waist Size",
   "Inseam",
   "Leg Style",
   "Rise",
-  "Accents",
-  "Features",
+  // Adicionales
+  "Occasion",
+  "Closure",
+  "Season",
+  "Strap Type",
   "Country of Origin",
   "Country/Region of Manufacture",
   "Handmade",
