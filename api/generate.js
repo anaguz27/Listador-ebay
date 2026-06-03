@@ -27,9 +27,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No se recibieron imágenes." });
     }
 
-    // Enviar a la IA como máximo las primeras 6 fotos (las más importantes).
-    // El usuario puede subir hasta 16, pero solo las primeras 6 van al modelo.
-    const imagesForAI = images.slice(0, 6);
+    // Enviar a la IA hasta las primeras 16 fotos. Las etiquetas (marca, talla,
+    // material, país de origen) suelen ir en fotos posteriores, así que es
+    // esencial mandarlas todas para que el modelo pueda leerlas.
+    const imagesForAI = images.slice(0, 16);
 
     // Construir el contenido del mensaje: imágenes + instrucción
     const content = [];
@@ -75,7 +76,7 @@ READ THE LABEL CAREFULLY — MATERIAL, CARE, AND ORIGIN: One of the photos shows
 - "Material" (Fabric Type): transcribe the EXACT fiber composition printed on the label, including percentages, in eBay's usual format (e.g. "96% Polyester, 4% Elastane" or "100% Cotton"). If several fibers are listed, include them all in order. Only if the composition is genuinely unreadable do you omit Material.
 - "Garment Care": read the care instructions or care symbols on the label and report them in eBay terms (e.g. "Machine Washable", "Hand Wash", "Dry Clean Only", "Tumble Dry"). If the care line is unreadable, omit it.
 - "Country of Origin": read the "Made in ___" line on the label and use that country exactly (e.g. "Jordan", "Vietnam", "China"). If there is no readable "Made in" line, omit it.
-Read the smallest print you can. These three label fields matter a lot to buyers, so make a real effort before giving up on any of them.
+Read the smallest print you can. ACTIVELY SEARCH every photo for the brand/composition/care label — it is usually a small fabric tag sewn inside the garment, on the side seam, or on the back neck, and the seller almost always includes a close-up photo of it. Read it character by character. If the label is slightly blurry or small but still legible with effort, READ IT — that is reading, not inventing. Only omit a label field if the print is genuinely impossible to make out. These three label fields (Material, Garment Care, Country of Origin) matter a lot to buyers, so exhaust every photo before giving up on any of them.
 
 SLEEVE — ALWAYS CHARACTERIZE WHEN VISIBLE: For any top, blouse, dress, sweater or shirt, the sleeves are visible in the photos, so you should normally fill BOTH:
 - "Sleeve Length": one of Sleeveless, Short Sleeve, 3/4 Sleeve, Long Sleeve, Cap Sleeve — based on what you see.
@@ -269,4 +270,3 @@ function extractJson(raw) {
     try { return JSON.parse(slice); } catch {}
   }
   return null;
-}
