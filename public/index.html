@@ -309,7 +309,7 @@ $('btnGen').onclick=async ()=>{
 
   try{
     const fitted = await fitPayload();
-    const toSend = fitted.slice(0, 6);
+    const toSend = fitted.slice(0, 16);
     const res=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
