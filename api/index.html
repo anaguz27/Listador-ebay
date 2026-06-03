@@ -80,7 +80,7 @@
     </div>
     <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
     <input id="inGal" type="file" accept="image/*" multiple hidden>
-    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 10 primeras.</p>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 16.</p>
   </section>
 
   <section class="card fadeUp" style="margin-top:16px">
@@ -307,7 +307,7 @@ $('btnGen').onclick=async ()=>{
 
   try{
     const fitted = await fitPayload();
-    const toSend = fitted.slice(0, 10);
+    const toSend = fitted.slice(0, 16);
     const res=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -318,7 +318,7 @@ $('btnGen').onclick=async ()=>{
       }),
     });
     if(res.status===413){
-      throw new Error('Demasiadas fotos para enviar de una vez. Quita algunas (deja las 8–10 más importantes: prenda, etiqueta de marca, talla y la cinta métrica) e intenta de nuevo.');
+      throw new Error('Demasiadas fotos para enviar de una vez. Quita algunas (deja las más importantes: prenda, etiqueta de marca, talla y la cinta métrica) e intenta de nuevo.');
     }
     let data;
     try{ data=await res.json(); }
