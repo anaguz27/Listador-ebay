@@ -270,3 +270,4 @@ function extractJson(raw) {
     try { return JSON.parse(slice); } catch {}
   }
   return null;
+}
