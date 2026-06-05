@@ -1,5 +1,9 @@
 // api/borradores.js
 // Maneja los borradores de Listador eBay guardados en Upstash Redis.
+// MEJORA: ahora cada borrador puede guardar también el "listing" completo
+// (título, precio, item specifics, garment, descripción, notas) y las
+// "imageUrls" ya subidas a eBay, para poder PUBLICARLO directo en vivo.
+// Los borradores viejos (solo titulo/contenido) siguen funcionando igual.
 
 import { Redis } from "@upstash/redis";
 
@@ -26,6 +30,12 @@ export default async function handler(req, res) {
         id,
         titulo: borrador.titulo || "Sin título",
         contenido: borrador.contenido || "",
+        // --- NUEVO: datos para publicar directo en eBay ---
+        // Se guardan solo si vienen; si no, quedan null y el borrador
+        // se comporta como antes (solo texto para copiar).
+        listing: borrador.listing || null,
+        imageUrls: Array.isArray(borrador.imageUrls) ? borrador.imageUrls : null,
+        // ---------------------------------------------------
         creado: borrador.creado || Date.now(),
         actualizado: Date.now(),
       };
@@ -53,6 +63,17 @@ export default async function handler(req, res) {
       const borradores = valores
         .filter(Boolean)
         .map((v) => (typeof v === "string" ? JSON.parse(v) : v))
+        // Para la LISTA no mandamos el listing/imageUrls completos (pesan):
+        // mandamos solo un indicador "publicable" para que el botón sepa
+        // si puede publicar este borrador o no.
+        .map((b) => ({
+          id: b.id,
+          titulo: b.titulo,
+          contenido: b.contenido,
+          creado: b.creado,
+          actualizado: b.actualizado,
+          publicable: !!(b.listing && b.imageUrls && b.imageUrls.length),
+        }))
         .sort((a, b) => (b.actualizado || 0) - (a.actualizado || 0));
 
       return res.status(200).json({ ok: true, borradores });
