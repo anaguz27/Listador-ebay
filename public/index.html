@@ -641,19 +641,45 @@ async function guardarEnNube(){
   saveEdits();
   const btn=$('btnGuardarNube');
   const original=btn.innerHTML;
-  btn.innerHTML='⏳ Guardando…';
   btn.disabled=true;
   try{
     const texto=buildText(listing);
     const titulo=(listing.title||'Sin título').slice(0,80);
+
+    // 1) Subir las fotos a eBay UNA vez (para poder publicar luego de un toque)
+    btn.innerHTML='⏳ Subiendo fotos…';
+    let imageUrls=null;
+    let listingToSave=null;
+    try{
+      const fitted=await fitPayload();
+      const imgs=fitted.slice(0,6).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
+      const rf=await fetch('/api/ebay-subir-fotos',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ images: imgs })
+      });
+      const df=await rf.json();
+      if(rf.ok && df.ok && df.imageUrls && df.imageUrls.length){
+        imageUrls=df.imageUrls;
+        listingToSave={ ...listing, fixedNotes: buildFixedNotes(listing.garment, listing.display) };
+      }
+    }catch(e){ /* si fallan las fotos, igual guardamos el texto */ }
+
+    // 2) Guardar el borrador (con listing+URLs si subieron; si no, solo texto)
+    btn.innerHTML='⏳ Guardando…';
     const r=await fetch('/api/borradores',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({accion:'guardar',borrador:{titulo,contenido:texto}})
+      body:JSON.stringify({accion:'guardar',borrador:{titulo,contenido:texto,listing:listingToSave,imageUrls:imageUrls}})
     });
     const data=await r.json();
     if(!r.ok || !data.ok){ throw new Error(data.error||'No se pudo guardar.'); }
-    $('nubeMsg').innerHTML='<div class="ok fadeUp">✅<div><strong>Guardado en Mis borradores</strong><p>Lo puedes abrir desde cualquier dispositivo con el botón 📁 Mis borradores.</p></div></div>';
+
+    if(imageUrls){
+      $('nubeMsg').innerHTML='<div class="ok fadeUp">✅<div><strong>Guardado y listo para publicar</strong><p>Desde 📁 Mis borradores puedes publicarlo en vivo en eBay con un toque.</p></div></div>';
+    }else{
+      $('nubeMsg').innerHTML='<div class="ok fadeUp">✅<div><strong>Guardado en Mis borradores</strong><p>Se guardó el texto para copiar. (No se pudieron subir las fotos, así que este no se puede publicar directo.)</p></div></div>';
+    }
   }catch(err){
     $('nubeMsg').innerHTML='<div class="err fadeUp">⚠️<div><strong>No se pudo guardar</strong><p style="white-space:pre-wrap">'+err.message+'</p></div></div>';
   }finally{
@@ -693,13 +719,19 @@ async function cargarBorradores(){
     cont.innerHTML=arr.map(function(b){
       var fecha=new Date(b.actualizado||b.creado||Date.now()).toLocaleString();
       var titulo=(b.titulo||'Sin título').replace(/</g,'&lt;');
+      var btnPublicar = b.publicable
+        ? '<button class="ghost" id="pub-'+b.id+'" style="border:1px solid var(--sage);background:#fff;color:var(--sage);border-radius:12px;padding:9px 12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--body)" onclick="publicarBorrador(\''+b.id+'\')">📤 Publicar en eBay</button>'
+        : '';
       return '<div class="card" style="margin-bottom:12px">'
         +'<p style="margin:0 0 4px;font-weight:600;font-size:15px">'+titulo+'</p>'
-        +'<p class="hint" style="margin:0 0 10px">'+fecha+'</p>'
+        +'<p class="hint" style="margin:0 0 10px">'+fecha+(b.publicable?' · ✅ listo para publicar':'')+'</p>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +btnPublicar
         +'<button class="ghost" style="border:1px solid var(--border);background:#fff;border-radius:12px;padding:9px 12px;font-size:13.5px;cursor:pointer;font-family:var(--body)" onclick="copiarBorrador(\''+b.id+'\')">📋 Copiar</button>'
         +'<button class="ghost" style="border:1px solid #ffd3c2;background:#fff4f0;color:#9c2a14;border-radius:12px;padding:9px 12px;font-size:13.5px;cursor:pointer;font-family:var(--body)" onclick="borrarBorrador(\''+b.id+'\')">🗑️ Borrar</button>'
-        +'</div></div>';
+        +'</div>'
+        +'<div id="pubmsg-'+b.id+'"></div>'
+        +'</div>';
     }).join('');
   }catch(err){
     cont.innerHTML='<div class="err fadeUp">⚠️<div><strong>No se pudieron cargar</strong><p style="white-space:pre-wrap">'+err.message+'</p></div></div>';
@@ -720,6 +752,48 @@ async function copiarBorrador(id){
     catch(e){ const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta); }
     alert('✅ Borrador copiado. Pégalo donde lo necesites.');
   }catch(err){ alert('No se pudo copiar: '+err.message); }
+}
+
+async function publicarBorrador(id){
+  if(!confirm('¿Publicar este listado EN VIVO en eBay? Quedará a la venta de inmediato.')) return;
+  var btn=$('pub-'+id);
+  var msg=$('pubmsg-'+id);
+  if(msg) msg.innerHTML='';
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Publicando…'; }
+  try{
+    var rl=await fetch('/api/borradores',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({accion:'leer',id:id})
+    });
+    var dl=await rl.json();
+    if(!rl.ok || !dl.ok){ throw new Error(dl.error||'No se pudo leer el borrador.'); }
+    var b=dl.borrador||{};
+    if(!b.listing || !b.imageUrls || !b.imageUrls.length){
+      throw new Error('Este borrador no tiene fotos subidas a eBay. Vuelve a generarlo y guárdalo de nuevo para poder publicarlo directo.');
+    }
+    var rp=await fetch('/api/ebay-publicar-vivo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ listing: b.listing, imageUrls: b.imageUrls })
+    });
+    var dp;
+    try{ dp=await rp.json(); }catch(e){ throw new Error('El servidor no respondió bien. Intenta de nuevo.'); }
+    if(!rp.ok || !dp.ok){
+      var detalle=dp.error||'No se pudo publicar.';
+      if(dp.errorDetalle) detalle+='\n\nDETALLE: '+dp.errorDetalle;
+      if(Array.isArray(dp.pasos)){
+        var fail=dp.pasos.find(function(p){return p.ok===false;});
+        if(fail) detalle+='\n\nPASO QUE FALLÓ: '+fail.paso+' ['+(fail.status||'')+']\n'+JSON.stringify(fail.error).slice(0,400);
+      }
+      throw new Error(detalle);
+    }
+    if(msg) msg.innerHTML='<div class="ok fadeUp" style="margin-top:10px">✅<div><strong>¡Publicado en vivo en eBay!</strong><p>Ya está a la venta. ID del listado: '+dp.listingId+'.</p></div></div>';
+    if(btn){ btn.textContent='✅ Publicado'; }
+  }catch(err){
+    if(msg) msg.innerHTML='<div class="err fadeUp" style="margin-top:10px">⚠️<div><strong>No se pudo publicar</strong><p style="white-space:pre-wrap">'+err.message+'</p></div></div>';
+    if(btn){ btn.disabled=false; btn.textContent='📤 Publicar en eBay'; }
+  }
 }
 
 async function borrarBorrador(id){
