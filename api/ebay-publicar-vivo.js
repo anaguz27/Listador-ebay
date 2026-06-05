@@ -157,7 +157,7 @@ export default async function handler(req, res) {
   }
   const pasos = [];
   try {
-    const { listing, imageUrls, precioElegido, envioElegido } = req.body || {};
+    const { listing, imageUrls, precioElegido, envioElegido, skuElegido } = req.body || {};
     if (!listing) return res.status(400).json({ error: "Falta listing" });
     if (!imageUrls || !imageUrls.length) {
       return res.status(400).json({ error: "Faltan las fotos (imageUrls). Vuelve a guardar el borrador." });
@@ -167,7 +167,10 @@ export default async function handler(req, res) {
     pasos.push({ paso: "0-token", ok: true });
 
     // 1) Inventory item (usando las URLs YA subidas, sin volver a subir nada)
-    const sku = nuevoSku();
+    // SKU: usa el que escribió Ana (su código de ubicación); si viene vacío,
+    // genera uno automático para no fallar. Se limpia de espacios y caracteres raros.
+    const skuLimpio = (skuElegido || "").trim().replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 50);
+    const sku = skuLimpio || nuevoSku();
     const descBlock =
       (listing.fixedNotes ? listing.fixedNotes + "\n\n" : "") + (listing.description || "");
     const aspects = toAspects(listing.item_specifics, listing.garment);
