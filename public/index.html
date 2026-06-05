@@ -335,12 +335,17 @@ $('btnGen').onclick=async ()=>{
     let data;
     try{ data=await res.json(); }
     catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo en un momento.'); }
-    if(!res.ok) throw new Error(data.error || 'Error en el servidor.');
+    if(!res.ok){
+      var em = data && data.error;
+      if(em && typeof em === 'object') em = em.message || JSON.stringify(em);
+      if(data && data.detalle) em = (em||'') + ' — ' + (typeof data.detalle==='object'? JSON.stringify(data.detalle): data.detalle);
+      throw new Error(em || 'Error en el servidor.');
+    }
     listing=data;
     editing=false;
     renderResult();
   }catch(err){
-    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo generar</strong><p>${err.message}</p></div></div>`;
+    $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo generar</strong><p style="white-space:pre-wrap">${err.message}</p></div></div>`;
   }finally{
     btn.disabled=images.length===0;
     btn.innerHTML='✨ Generar listado';
