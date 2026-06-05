@@ -177,6 +177,14 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         availability: { shipToLocationAvailability: { quantity: 1 } },
         condition: "USED_EXCELLENT",
+        // Peso y dimensiones del paquete: requeridos por USPS Ground Advantage.
+        // Sin esto, publishOffer falla con error 25007 ("invalid shipping data").
+        // 1 libra y caja chica cubren casi cualquier prenda doblada.
+        packageWeightAndSize: {
+          packageType: "PACKAGE_THICK_ENVELOPE",
+          weight: { value: 1, unit: "POUND" },
+          dimensions: { length: 12, width: 9, height: 2, unit: "INCH" }
+        },
         product: {
           title: (listing.title || "").slice(0, 80),
           description: descBlock,
