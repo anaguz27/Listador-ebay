@@ -720,7 +720,7 @@ async function cargarBorradores(){
       var fecha=new Date(b.actualizado||b.creado||Date.now()).toLocaleString();
       var titulo=(b.titulo||'Sin título').replace(/</g,'&lt;');
       var btnPublicar = b.publicable
-        ? '<button class="ghost" id="pub-'+b.id+'" style="border:1px solid var(--sage);background:#fff;color:var(--sage);border-radius:12px;padding:9px 12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--body)" onclick="publicarBorrador(\''+b.id+'\')">📤 Publicar en eBay</button>'
+        ? '<button class="ghost" id="pub-'+b.id+'" style="border:1px solid var(--sage);background:#fff;color:var(--sage);border-radius:12px;padding:9px 12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--body)" onclick="mostrarFormPublicar(\''+b.id+'\')">📤 Publicar en eBay</button>'
         : '';
       return '<div class="card" style="margin-bottom:12px">'
         +'<p style="margin:0 0 4px;font-weight:600;font-size:15px">'+titulo+'</p>'
@@ -730,6 +730,7 @@ async function cargarBorradores(){
         +'<button class="ghost" style="border:1px solid var(--border);background:#fff;border-radius:12px;padding:9px 12px;font-size:13.5px;cursor:pointer;font-family:var(--body)" onclick="copiarBorrador(\''+b.id+'\')">📋 Copiar</button>'
         +'<button class="ghost" style="border:1px solid #ffd3c2;background:#fff4f0;color:#9c2a14;border-radius:12px;padding:9px 12px;font-size:13.5px;cursor:pointer;font-family:var(--body)" onclick="borrarBorrador(\''+b.id+'\')">🗑️ Borrar</button>'
         +'</div>'
+        +'<div id="pubform-'+b.id+'"></div>'
         +'<div id="pubmsg-'+b.id+'"></div>'
         +'</div>';
     }).join('');
@@ -754,12 +755,48 @@ async function copiarBorrador(id){
   }catch(err){ alert('No se pudo copiar: '+err.message); }
 }
 
+// Muestra el mini-formulario (precio + envio) antes de publicar
+function mostrarFormPublicar(id){
+  var cont=$('pubform-'+id);
+  if(!cont) return;
+  // Leer el borrador para sacar el precio sugerido
+  fetch('/api/borradores',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({accion:'leer',id:id})
+  }).then(function(r){return r.json();}).then(function(d){
+    var b=(d&&d.borrador)||{};
+    var l=b.listing||{};
+    var precioSug = l.price_max || l.price_min || '';
+    cont.innerHTML =
+      '<div class="card" style="margin-top:10px;background:var(--paper)">'
+      +'<label class="lbl">Precio (USD)</label>'
+      +'<input id="pubprecio-'+id+'" type="number" inputmode="decimal" class="edin" value="'+precioSug+'" style="margin-bottom:12px">'
+      +'<label class="lbl">Env\u00edo</label>'
+      +'<select id="pubenvio-'+id+'" class="edin" style="margin-bottom:6px">'
+      +'<option value="6.50">$6.50 \u2014 Ligero (blusas/tops)</option>'
+      +'<option value="7.00">$7.00 \u2014 Blusas</option>'
+      +'<option value="8.99" selected>$8.99 \u2014 Su\u00e9ter/vestido</option>'
+      +'<option value="9.98">$9.98 \u2014 Pantal\u00f3n/pesado</option>'
+      +'</select>'
+      +'<p class="hint" style="margin-top:4px">\u2705 Este listado aceptar\u00e1 ofertas (Best Offer). T\u00fa decides cada una.</p>'
+      +'<button class="ebay" id="pubconfirm-'+id+'" style="margin-top:10px" onclick="publicarBorrador(\''+id+'\')">\ud83d\udce4 Publicar ahora en vivo</button>'
+      +'</div>';
+  }).catch(function(){
+    cont.innerHTML='<p class="hint" style="color:#9c2a14">No se pudo cargar el borrador. Intenta de nuevo.</p>';
+  });
+}
+
 async function publicarBorrador(id){
-  if(!confirm('¿Publicar este listado EN VIVO en eBay? Quedará a la venta de inmediato.')) return;
-  var btn=$('pub-'+id);
+  var btn=$('pubconfirm-'+id);
   var msg=$('pubmsg-'+id);
   if(msg) msg.innerHTML='';
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Publicando…'; }
+  // Leer precio y envio elegidos del mini-formulario
+  var precioEl=$('pubprecio-'+id);
+  var envioEl=$('pubenvio-'+id);
+  var precioElegido = precioEl ? precioEl.value : '';
+  var envioElegido = envioEl ? envioEl.value : '';
+  if(!confirm('\u00bfPublicar EN VIVO en eBay a $'+precioElegido+' con env\u00edo $'+envioElegido+'? Quedar\u00e1 a la venta de inmediato.')) return;
+  if(btn){ btn.disabled=true; btn.textContent='\u23f3 Publicando\u2026'; }
   try{
     var rl=await fetch('/api/borradores',{
       method:'POST',
@@ -770,29 +807,30 @@ async function publicarBorrador(id){
     if(!rl.ok || !dl.ok){ throw new Error(dl.error||'No se pudo leer el borrador.'); }
     var b=dl.borrador||{};
     if(!b.listing || !b.imageUrls || !b.imageUrls.length){
-      throw new Error('Este borrador no tiene fotos subidas a eBay. Vuelve a generarlo y guárdalo de nuevo para poder publicarlo directo.');
+      throw new Error('Este borrador no tiene fotos subidas a eBay. Vuelve a generarlo y gu\u00e1rdalo de nuevo para poder publicarlo directo.');
     }
     var rp=await fetch('/api/ebay-publicar-vivo',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ listing: b.listing, imageUrls: b.imageUrls })
+      body:JSON.stringify({ listing: b.listing, imageUrls: b.imageUrls, precioElegido: precioElegido, envioElegido: envioElegido })
     });
     var dp;
-    try{ dp=await rp.json(); }catch(e){ throw new Error('El servidor no respondió bien. Intenta de nuevo.'); }
+    try{ dp=await rp.json(); }catch(e){ throw new Error('El servidor no respondi\u00f3 bien. Intenta de nuevo.'); }
     if(!rp.ok || !dp.ok){
       var detalle=dp.error||'No se pudo publicar.';
       if(dp.errorDetalle) detalle+='\n\nDETALLE: '+dp.errorDetalle;
       if(Array.isArray(dp.pasos)){
         var fail=dp.pasos.find(function(p){return p.ok===false;});
-        if(fail) detalle+='\n\nPASO QUE FALLÓ: '+fail.paso+' ['+(fail.status||'')+']\n'+JSON.stringify(fail.error).slice(0,400);
+        if(fail) detalle+='\n\nPASO QUE FALL\u00d3: '+fail.paso+' ['+(fail.status||'')+']\n'+JSON.stringify(fail.error).slice(0,400);
       }
       throw new Error(detalle);
     }
-    if(msg) msg.innerHTML='<div class="ok fadeUp" style="margin-top:10px">✅<div><strong>¡Publicado en vivo en eBay!</strong><p>Ya está a la venta. ID del listado: '+dp.listingId+'.</p></div></div>';
-    if(btn){ btn.textContent='✅ Publicado'; }
+    if(msg) msg.innerHTML='<div class="ok fadeUp" style="margin-top:10px">\u2705<div><strong>\u00a1Publicado en vivo en eBay!</strong><p>Ya est\u00e1 a la venta. ID del listado: '+dp.listingId+'.</p></div></div>';
+    var formc=$('pubform-'+id); if(formc) formc.innerHTML='';
+    var pb=$('pub-'+id); if(pb){ pb.textContent='\u2705 Publicado'; pb.disabled=true; }
   }catch(err){
-    if(msg) msg.innerHTML='<div class="err fadeUp" style="margin-top:10px">⚠️<div><strong>No se pudo publicar</strong><p style="white-space:pre-wrap">'+err.message+'</p></div></div>';
-    if(btn){ btn.disabled=false; btn.textContent='📤 Publicar en eBay'; }
+    if(msg) msg.innerHTML='<div class="err fadeUp" style="margin-top:10px">\u26a0\ufe0f<div><strong>No se pudo publicar</strong><p style="white-space:pre-wrap">'+err.message+'</p></div></div>';
+    if(btn){ btn.disabled=false; btn.textContent='\ud83d\udce4 Publicar ahora en vivo'; }
   }
 }
 

@@ -157,7 +157,7 @@ export default async function handler(req, res) {
   }
   const pasos = [];
   try {
-    const { listing, imageUrls } = req.body || {};
+    const { listing, imageUrls, precioElegido, envioElegido } = req.body || {};
     if (!listing) return res.status(400).json({ error: "Falta listing" });
     if (!imageUrls || !imageUrls.length) {
       return res.status(400).json({ error: "Faltan las fotos (imageUrls). Vuelve a guardar el borrador." });
@@ -202,7 +202,11 @@ export default async function handler(req, res) {
     pasos.push({ paso: "1-item", ok: true, sku });
 
     // 2) Oferta — SIN listingStartDate => al publicar queda ACTIVA de inmediato
-    const precio = String(listing.price_max || listing.price_min || "9.99");
+    // Precio: usa el que eligió la pantalla; si no, el price_max del listado.
+    const precio = String(precioElegido || listing.price_max || listing.price_min || "9.99");
+    // Envío: usa el ID que eligió la pantalla; si no, el automático por prenda.
+    const fulfillmentId =
+      (envioElegido && ENVIO[envioElegido]) ? ENVIO[envioElegido] : envioPorPrenda(listing.garment);
     const ofRes = await fetch(`${INVENTORY_API}/offer`, {
       method: "POST",
       headers: H(token),
@@ -214,10 +218,13 @@ export default async function handler(req, res) {
         categoryId: categoriaPorPrenda(listing.garment),
         listingDescription: descBlock,
         pricingSummary: { price: { value: precio, currency: "USD" } },
+        // Best Offer activado: el comprador puede hacer ofertas, Ana decide cada una.
+        // Sin auto-aceptar ni auto-rechazar (control manual).
+        bestOfferTerms: { bestOfferEnabled: true },
         listingPolicies: {
           paymentPolicyId: POLICY_PAGO,
           returnPolicyId: POLICY_DEVOLUCIONES,
-          fulfillmentPolicyId: envioPorPrenda(listing.garment)
+          fulfillmentPolicyId: fulfillmentId
         },
         merchantLocationKey: MERCHANT_LOCATION
       })
