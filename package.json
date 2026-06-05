@@ -1,8 +1,10 @@
 {
-  "name": "listador-ebay",
-  "version": "1.0.0",
-  "description": "Genera listados optimizados para eBay",
-  "private": true,
-  "type": "module"
+    "name": "listador-ebay",
+    "version": "1.0.0",
+    "description": "Genera listados optimizados para eBay",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "@upstash/redis": "^1.34.3"
+    }
 }
-
