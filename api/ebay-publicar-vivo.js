@@ -15,14 +15,14 @@ const INVENTORY_API = "https://api.ebay.com/sell/inventory/v1";
 
 const MARKETPLACE = "EBAY_US";
 
-// === IDs de PRODUCCIÓN (cuenta anaguz62) ===
+// === IDs de PRODUCCIÓN (cuenta bernabep78) ===
 const POLICY_PAGO = "243970968017";
 const POLICY_DEVOLUCIONES = "243970966017";
 const ENVIO = {
-  "6.50": "2584576720177",
-  "7.00": "2584731900017",
-  "8.99": "2583076640177",
-  "9.98": "2583077390017"
+  "6.50": "258457672017",  // LIGTHWEIGHT
+  "7.00": "258473190017",  // BLOUSES
+  "8.99": "258307664017",  // SWEATER
+  "9.98": "258307739017"   // PANTS
 };
 const MERCHANT_LOCATION = "ubicacion-principal";
 
