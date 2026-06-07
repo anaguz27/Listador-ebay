@@ -266,8 +266,8 @@ function payloadBytes(imgs){
 }
 
 async function fitPayload(){
-  const LIMIT = 3.6 * 1024 * 1024;
-  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5} ];
+  const LIMIT = 4.2 * 1024 * 1024;
+  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5}, {px:450,q:0.45}, {px:400,q:0.4}, {px:340,q:0.38} ];
   let working = images.map(i=>({...i}));
   if(payloadBytes(working) <= LIMIT) return working;
   for(const s of steps){
