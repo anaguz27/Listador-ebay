@@ -84,7 +84,7 @@
   </section>
 
   <section class="card fadeUp">
-    <label class="lbl">Fotos del producto (<span id="count">0</span>/16)</label>
+    <label class="lbl">Fotos del producto (<span id="count">0</span>/24)</label>
     <div class="thumbs" id="thumbs"></div>
     <div class="grid2">
       <button class="act" id="btnCam">📷<span>Cámara</span></button>
@@ -92,7 +92,7 @@
     </div>
     <input id="inCam" type="file" accept="image/*" capture="environment" hidden>
     <input id="inGal" type="file" accept="image/*" multiple hidden>
-    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 16; la IA analiza las 6 primeras.</p>
+    <p class="hint">Incluye etiquetas, talla, marca y cualquier detalle de desgaste. Las fotos se comprimen solas para no fallar. Máx. 24; la IA analiza las 6 primeras.</p>
   </section>
 
   <section class="card fadeUp" style="margin-top:16px">
@@ -145,7 +145,7 @@
 </div>
 
 <script>
-const MAX = 16;
+const MAX = 24;
 let images = []; // {id, dataUrl, mediaType, file}
 let listing = null;
 let editing = false;
@@ -306,8 +306,8 @@ function payloadBytes(imgs){
 }
 
 async function fitPayload(){
-  const LIMIT = 4.2 * 1024 * 1024;
-  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5}, {px:450,q:0.45}, {px:400,q:0.4}, {px:340,q:0.38} ];
+  const LIMIT = 4.0 * 1024 * 1024;
+  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5}, {px:450,q:0.45}, {px:400,q:0.4}, {px:340,q:0.38}, {px:300,q:0.35}, {px:260,q:0.32} ];
   let working = images.map(i=>({...i}));
   if(payloadBytes(working) <= LIMIT) return working;
   for(const s of steps){
@@ -323,6 +323,11 @@ async function fitPayload(){
       }
     }
     if(payloadBytes(working) <= LIMIT) return working;
+  }
+  // Último recurso: si aún con la compresión máxima no cabe (muchísimas fotos),
+  // recortar quitando fotos del final hasta que entre, para que NUNCA falle.
+  while(working.length > 1 && payloadBytes(working) > LIMIT){
+    working.pop();
   }
   return working;
 }
