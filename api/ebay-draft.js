@@ -16,7 +16,7 @@ const INVENTORY_API = "https://api.ebay.com/sell/inventory/v1";
 const MEDIA_API = "https://apim.ebay.com/commerce/media/v1_beta";
 
 const MARKETPLACE = "EBAY_US";
-const MAX_FOTOS = 6;
+const MAX_FOTOS = 24;
 
 // === IDs de PRODUCCIÓN (cuenta anaguz62) ===
 const POLICY_PAGO = "243970968017";          // eBay Managed Payments
