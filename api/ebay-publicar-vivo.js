@@ -157,7 +157,7 @@ export default async function handler(req, res) {
   }
   const pasos = [];
   try {
-    const { listing, imageUrls, precioElegido, envioElegido, skuElegido, aceptaOfertas } = req.body || {};
+    const { listing, imageUrls, precioElegido, envioElegido, skuElegido, aceptaOfertas, categoriaTienda } = req.body || {};
     if (!listing) return res.status(400).json({ error: "Falta listing" });
     if (!imageUrls || !imageUrls.length) {
       return res.status(400).json({ error: "Faltan las fotos (imageUrls). Vuelve a guardar el borrador." });
@@ -210,30 +210,48 @@ export default async function handler(req, res) {
     // Envío: usa el ID que eligió la pantalla; si no, el automático por prenda.
     const fulfillmentId =
       (envioElegido && ENVIO[envioElegido]) ? ENVIO[envioElegido] : envioPorPrenda(listing.garment);
+
+    // Cuerpo de la oferta. La categoría de tienda (carpeta) la eliges TÚ en la
+    // pantalla antes de publicar. Si viene vacía o es "Other", NO se manda nada.
+    const offerBody = {
+      sku,
+      marketplaceId: MARKETPLACE,
+      format: "FIXED_PRICE",
+      availableQuantity: 1,
+      categoryId: categoriaPorPrenda(listing.garment),
+      listingDescription: descBlock,
+      pricingSummary: { price: { value: precio, currency: "USD" } },
+      listingPolicies: {
+        // Best Offer activado: el comprador puede hacer ofertas, Ana decide cada una.
+        // IMPORTANTE: bestOfferTerms va DENTRO de listingPolicies (no en
+        // pricingSummary ni suelto). Si va en otro lado, eBay lo ignora y el
+        // listado sale con "Ofertas: No". Por defecto se activa, salvo que la
+        // pantalla mande aceptaOfertas:false.
+        bestOfferTerms: { bestOfferEnabled: aceptaOfertas !== false },
+        paymentPolicyId: POLICY_PAGO,
+        returnPolicyId: POLICY_DEVOLUCIONES,
+        fulfillmentPolicyId: fulfillmentId
+      },
+      merchantLocationKey: MERCHANT_LOCATION
+    };
+
+    // Categoría de tienda (storeCategoryNames). eBay la espera como una ruta que
+    // empieza con "/", p.ej. "/WOMENS/BLOUSES". La pantalla manda el nombre tal
+    // como aparece (ej. "WOMENS > BLOUSES"); aquí lo convertimos a "/WOMENS/BLOUSES".
+    // Si la categoría es "Other" o viene vacía, no se manda (eBay la deja por defecto).
+    if (categoriaTienda && String(categoriaTienda).trim() && String(categoriaTienda).trim().toLowerCase() !== "other") {
+      const ruta = "/" + String(categoriaTienda).trim()
+        .split(">")
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .join("/");
+      offerBody.storeCategoryNames = [ruta];
+    }
+
     const ofRes = await fetch(`${INVENTORY_API}/offer`, {
       method: "POST",
       headers: H(token),
-      body: JSON.stringify({
-        sku,
-        marketplaceId: MARKETPLACE,
-        format: "FIXED_PRICE",
-        availableQuantity: 1,
-        categoryId: categoriaPorPrenda(listing.garment),
-        listingDescription: descBlock,
-        pricingSummary: { price: { value: precio, currency: "USD" } },
-        listingPolicies: {
-          // Best Offer activado: el comprador puede hacer ofertas, Ana decide cada una.
-          // IMPORTANTE: bestOfferTerms va DENTRO de listingPolicies (no en
-          // pricingSummary ni suelto). Si va en otro lado, eBay lo ignora y el
-          // listado sale con "Ofertas: No". Por defecto se activa, salvo que la
-          // pantalla mande aceptaOfertas:false.
-          bestOfferTerms: { bestOfferEnabled: aceptaOfertas !== false },
-          paymentPolicyId: POLICY_PAGO,
-          returnPolicyId: POLICY_DEVOLUCIONES,
-          fulfillmentPolicyId: fulfillmentId
-        },
-        merchantLocationKey: MERCHANT_LOCATION
-      })
+      body: JSON.stringify(offerBody)
     });
     const ofData = await ofRes.json().catch(() => ({}));
     if (ofRes.status !== 200 && ofRes.status !== 201) {
