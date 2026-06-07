@@ -278,7 +278,10 @@ export default async function handler(req, res) {
         availableQuantity: 1,
         categoryId: categoriaPorPrenda(listing.garment),
         listingDescription: descBlock,
-        pricingSummary: { price: { value: precio, currency: "USD" } },
+        pricingSummary: {
+          price: { value: precio, currency: "USD" },
+          bestOfferTerms: { bestOfferEnabled: true }
+        },
         listingPolicies: {
           paymentPolicyId: POLICY_PAGO,
           returnPolicyId: POLICY_DEVOLUCIONES,
