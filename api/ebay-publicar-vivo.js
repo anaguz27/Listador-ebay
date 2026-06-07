@@ -220,10 +220,13 @@ export default async function handler(req, res) {
         availableQuantity: 1,
         categoryId: categoriaPorPrenda(listing.garment),
         listingDescription: descBlock,
-        pricingSummary: { price: { value: precio, currency: "USD" } },
         // Best Offer activado: el comprador puede hacer ofertas, Ana decide cada una.
-        // Sin auto-aceptar ni auto-rechazar (control manual).
-        bestOfferTerms: { bestOfferEnabled: true },
+        // IMPORTANTE: bestOfferTerms va DENTRO de pricingSummary; si va suelto
+        // al nivel raíz, eBay lo ignora y el listado sale sin aceptar ofertas.
+        pricingSummary: {
+          price: { value: precio, currency: "USD" },
+          bestOfferTerms: { bestOfferEnabled: true }
+        },
         listingPolicies: {
           paymentPolicyId: POLICY_PAGO,
           returnPolicyId: POLICY_DEVOLUCIONES,
