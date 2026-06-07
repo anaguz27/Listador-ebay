@@ -785,7 +785,11 @@ function mostrarFormPublicar(id){
       +'</select>'
       +'<label class="lbl" style="margin-top:12px">SKU / Ubicaci\u00f3n (d\u00f3nde guardaste la prenda)</label>'
       +'<input id="pubsku-'+id+'" type="text" class="edin" placeholder="Ej.: CAJA-3, Estante A2\u2026" style="margin-bottom:6px">'
-      +'<p class="hint" style="margin-top:4px">\u2705 Este listado aceptar\u00e1 ofertas (Best Offer). T\u00fa decides cada una.</p>'
+      +'<label class="lbl" style="margin-top:12px">\u00bfAceptar ofertas? (Best Offer)</label>'
+      +'<select id="puboferta-'+id+'" class="edin" style="margin-bottom:6px">'
+      +'<option value="si" selected>S\u00ed \u2014 aceptar ofertas (t\u00fa decides cada una)</option>'
+      +'<option value="no">No \u2014 solo precio fijo</option>'
+      +'</select>'
       +'<button class="ebay" id="pubconfirm-'+id+'" style="margin-top:10px" onclick="publicarBorrador(\''+id+'\')">\ud83d\udce4 Publicar ahora en vivo</button>'
       +'</div>';
   }).catch(function(){
@@ -801,9 +805,11 @@ async function publicarBorrador(id){
   var precioEl=$('pubprecio-'+id);
   var envioEl=$('pubenvio-'+id);
   var skuEl=$('pubsku-'+id);
+  var ofertaEl=$('puboferta-'+id);
   var precioElegido = precioEl ? precioEl.value : '';
   var envioElegido = envioEl ? envioEl.value : '';
   var skuElegido = skuEl ? skuEl.value : '';
+  var aceptaOfertas = ofertaEl ? (ofertaEl.value !== 'no') : true;
   if(!confirm('\u00bfPublicar EN VIVO en eBay a $'+precioElegido+' con env\u00edo $'+envioElegido+'? Quedar\u00e1 a la venta de inmediato.')) return;
   if(btn){ btn.disabled=true; btn.textContent='\u23f3 Publicando\u2026'; }
   try{
@@ -821,7 +827,7 @@ async function publicarBorrador(id){
     var rp=await fetch('/api/ebay-publicar-vivo',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ listing: b.listing, imageUrls: b.imageUrls, precioElegido: precioElegido, envioElegido: envioElegido, skuElegido: skuElegido })
+      body:JSON.stringify({ listing: b.listing, imageUrls: b.imageUrls, precioElegido: precioElegido, envioElegido: envioElegido, skuElegido: skuElegido, aceptaOfertas: aceptaOfertas })
     });
     var dp;
     try{ dp=await rp.json(); }catch(e){ throw new Error('El servidor no respondi\u00f3 bien. Intenta de nuevo.'); }

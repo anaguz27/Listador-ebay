@@ -157,7 +157,7 @@ export default async function handler(req, res) {
   }
   const pasos = [];
   try {
-    const { listing, imageUrls, precioElegido, envioElegido, skuElegido } = req.body || {};
+    const { listing, imageUrls, precioElegido, envioElegido, skuElegido, aceptaOfertas } = req.body || {};
     if (!listing) return res.status(400).json({ error: "Falta listing" });
     if (!imageUrls || !imageUrls.length) {
       return res.status(400).json({ error: "Faltan las fotos (imageUrls). Vuelve a guardar el borrador." });
@@ -220,14 +220,14 @@ export default async function handler(req, res) {
         availableQuantity: 1,
         categoryId: categoriaPorPrenda(listing.garment),
         listingDescription: descBlock,
-        // Best Offer activado: el comprador puede hacer ofertas, Ana decide cada una.
-        // IMPORTANTE: bestOfferTerms va DENTRO de pricingSummary; si va suelto
-        // al nivel raíz, eBay lo ignora y el listado sale sin aceptar ofertas.
-        pricingSummary: {
-          price: { value: precio, currency: "USD" },
-          bestOfferTerms: { bestOfferEnabled: true }
-        },
+        pricingSummary: { price: { value: precio, currency: "USD" } },
         listingPolicies: {
+          // Best Offer activado: el comprador puede hacer ofertas, Ana decide cada una.
+          // IMPORTANTE: bestOfferTerms va DENTRO de listingPolicies (no en
+          // pricingSummary ni suelto). Si va en otro lado, eBay lo ignora y el
+          // listado sale con "Ofertas: No". Por defecto se activa, salvo que la
+          // pantalla mande aceptaOfertas:false.
+          bestOfferTerms: { bestOfferEnabled: aceptaOfertas !== false },
           paymentPolicyId: POLICY_PAGO,
           returnPolicyId: POLICY_DEVOLUCIONES,
           fulfillmentPolicyId: fulfillmentId
