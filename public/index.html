@@ -657,7 +657,7 @@ async function guardarEnNube(){
     let listingToSave=null;
     try{
       const fitted=await fitPayload();
-      const imgs=fitted.slice(0,6).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
+      const imgs=fitted.slice(0,24).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
       const rf=await fetch('/api/ebay-subir-fotos',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
