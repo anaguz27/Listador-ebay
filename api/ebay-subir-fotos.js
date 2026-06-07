@@ -11,7 +11,7 @@ export const config = {
 
 const EBAY_OAUTH = "https://api.ebay.com/identity/v1/oauth2/token";
 const MEDIA_API = "https://apim.ebay.com/commerce/media/v1_beta";
-const MAX_FOTOS = 6;
+const MAX_FOTOS = 24;
 
 async function getAccessToken() {
   const refresh = process.env.EBAY_REFRESH_TOKEN;
