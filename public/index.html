@@ -474,7 +474,7 @@ async function saveToDraft(){
   try{
     // Reusar las fotos comprimidas (las mismas que se enviaron a la IA)
     const fitted = await fitPayload();
-    const imgs = fitted.slice(0,6).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
+    const imgs = fitted.slice(0,24).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
 
     // Adjuntar las notas fijas ya armadas para que el backend las ponga en la descripción
     const listingToSend = {
