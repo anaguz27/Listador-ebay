@@ -4,7 +4,7 @@
 // Permite recibir peticiones más grandes (varias fotos en base64).
 export const config = {
   api: {
-    bodyParser: { sizeLimit: "4.5mb" },
+    bodyParser: { sizeLimit: "8mb" },
   },
 };
 
@@ -84,7 +84,17 @@ SLEEVE — ALWAYS CHARACTERIZE WHEN VISIBLE: For any top, blouse, dress, sweater
 
 SIZE: Try hard to read the size from the size tag in the photos. If you can read it, put it in the title and in the "Size" item specific. If you genuinely CANNOT read a size anywhere in the photos, set the "Size" item specific value to "—" (an em dash) and do NOT put any size in the title. Never invent or estimate a size.
 
-CASSINI TITLE STRATEGY: Use as many of the 80 characters as possible without going over, using ONLY information you actually see. Front-load the highest-traffic search keywords (what a real buyer would type). Order: Brand + Department (Women's/Men's/Girls'/Boys'/Plus Size) + Item Type + key descriptors you can confirm (Color, Material, Style, Fit) + Size (only if you read it). Use natural buyer search terms, no punctuation, no filler words like "beautiful" or "nice", no ALL CAPS spam. Do not pad the title with descriptors you cannot confirm.
+CASSINI TITLE STRATEGY — WRITE THE TITLE LIKE A TOP-SELLING COMPLETED LISTING:
+Your goal is a title that real buyers will actually find and click, modeled on how the best-selling (sold) listings for this kind of item are written. Follow these rules:
+1. USE THE SPACE WELL: aim to fill roughly 75-80 of the 80 characters, but ONLY with real search words — never pad with filler. If you genuinely run out of confirmed keywords, a shorter clean title is fine. Quality of keywords beats raw length.
+2. FRONT-LOAD THE HIGHEST-TRAFFIC KEYWORDS FIRST: lead with the words a buyer is most likely to type. Recommended order, using only what you can confirm:
+   Brand → Department (Women's / Men's / Plus Size / Girls') → Item Type → Color → Pattern/Print → Material → Style/Fit → Key feature (neckline, sleeve, length) → Size (only if you actually read it).
+3. ITEM-TYPE SYNONYMS — ADD A SECOND REAL SEARCH TERM WHEN (AND ONLY WHEN) IT GENUINELY APPLIES: buyers search the same garment with different words, so when the item truly matches more than one common term, include up to TWO natural type words that a buyer would actually use for THIS specific garment (e.g. a loose flowy top → "Blouse Top"; a long loose top → "Tunic Top"; a cardigan → "Cardigan Sweater"; a sundress → "Sundress Dress" is NOT natural, so just "Sundress"). Rules for synonyms:
+   - Only add a synonym that ACCURATELY describes this exact item. Never add a type word that isn't true (do not call a fitted shirt a "tunic", do not call pants "leggings" unless they are).
+   - Maximum TWO type words total. Do not stack three or more (no "Blouse Top Tunic Shirt"). That looks like spam and Cassini does not reward repetition.
+   - If the item clearly is just one thing, use one clean type word. Forcing synonyms when they don't fit hurts more than it helps.
+4. NO punctuation, NO ALL CAPS, NO filler adjectives ("beautiful", "gorgeous", "stunning", "nice"), NO emojis, NO seller slang. Just clean, real keywords separated by spaces.
+5. Every word must be confirmable from the photos. Do not add a color, material, style or size you cannot actually see or read.
 
 ITEM SPECIFICS — FILL ONLY WHAT YOU CAN CONFIRM, NEVER INVENT: eBay rewards listings with MANY completed item specifics, so fill EVERY field you can actually determine from the photos (brand/care/size tags and the visible garment). But ONLY fill a field when you can see it or read it with real certainty. If you cannot tell, OMIT that field entirely from the array. Do NOT guess and do NOT add "(verify)". An omitted field is always better than a made-up one.
 
@@ -122,7 +132,7 @@ Create a complete, ready-to-publish eBay listing as a JSON object with exactly t
 {
   "garment": "one of: blouse|shorts|dress|pants|shoes|sweater|bra|swimsuit|bag",
   "display": "mannequin|hanger",
-  "title": "optimized eBay title in ENGLISH, aim for 70-80 characters, front-load most-searched keywords using ONLY confirmed info; include brand + department + item type + color + material/style + SIZE (size only if you actually read it); use Women's/Men's/Plus Size when relevant; NO punctuation, NO filler",
+  "title": "optimized eBay title in ENGLISH following the CASSINI TITLE STRATEGY above: aim for ~75-80 characters, front-load the most-searched keywords, use up to two accurate item-type words only when they genuinely fit, include brand + department + item type + color + pattern/material/style + SIZE (size only if you actually read it); use Women's/Men's/Plus Size when relevant; NO punctuation, NO filler, NO repetition spam",
   "category": "suggested eBay category path in English",
   "item_specifics": [
     {"label": "Brand", "value": "..."},
