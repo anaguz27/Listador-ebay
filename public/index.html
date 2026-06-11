@@ -376,6 +376,38 @@ async function fitPayloadEbay(){
   return working;
 }
 
+// ====================================================================
+//  SUBIR FOTOS A eBAY EN LOTES  (a prueba del límite de 4.5MB de Vercel)
+//  Manda las fotos a /api/ebay-subir-fotos de POCAS en POCAS (4 por lote),
+//  y acumula las imageUrls que devuelve cada lote EN ORDEN. Así, sin importar
+//  si son 6 o 24 fotos, ningún request supera el tope de Vercel y la subida
+//  nunca falla por tamaño. Devuelve TODAS las URLs juntas (o null si nada subió).
+//  onProgress(hechas, total) es opcional, para mostrar avance en el botón.
+// ====================================================================
+async function subirFotosEbayPorLotes(fotos, onProgress){
+  const LOTE = 4;
+  const urls = [];
+  for(let i=0; i<fotos.length; i+=LOTE){
+    const grupo = fotos.slice(i, i+LOTE);
+    const imgs = grupo.map(f=>({ data:f.dataUrl.split(',')[1], mediaType:f.mediaType }));
+    const rf = await fetch('/api/ebay-subir-fotos',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ images: imgs })
+    });
+    let df;
+    try{ df = await rf.json(); }catch(e){ df = null; }
+    if(!rf.ok || !df || !df.ok || !df.imageUrls || !df.imageUrls.length){
+      // Si un lote falla, abortamos: mejor no guardar a medias.
+      const motivo = (df && df.error) ? df.error : ('HTTP '+rf.status);
+      throw new Error('Falló la subida de fotos a eBay (lote '+(Math.floor(i/LOTE)+1)+'): '+motivo);
+    }
+    for(const u of df.imageUrls) urls.push(u);
+    if(typeof onProgress === 'function') onProgress(Math.min(i+LOTE, fotos.length), fotos.length);
+  }
+  return urls.length ? urls : null;
+}
+
 function renderThumbs(){
   const box=$('thumbs');
   box.innerHTML='';
@@ -639,19 +671,15 @@ async function guardarEnNube(){
     let listingToSave=null;
     try{
       // Usar TODAS las fotos (hasta 24) para que el comprador las vea completas.
+      // Se suben EN LOTES de 4 para no topar el límite de 4.5MB de Vercel.
       const fitted=await fitPayloadEbay();
-      const imgs=fitted.map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
-      const rf=await fetch('/api/ebay-subir-fotos',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ images: imgs })
+      imageUrls=await subirFotosEbayPorLotes(fitted, function(hechas,total){
+        btn.innerHTML='⏳ Subiendo fotos… ('+hechas+'/'+total+')';
       });
-      const df=await rf.json();
-      if(rf.ok && df.ok && df.imageUrls && df.imageUrls.length){
-        imageUrls=df.imageUrls;
+      if(imageUrls && imageUrls.length){
         listingToSave={ ...listing, fixedNotes: notesForListing(listing) };
       }
-    }catch(e){ /* si fallan las fotos, igual guardamos el texto */ }
+    }catch(e){ imageUrls=null; /* si fallan las fotos, igual guardamos el texto */ }
 
     // 2) Guardar el borrador (con listing+URLs si subieron; si no, solo texto)
     btn.innerHTML='⏳ Guardando…';
