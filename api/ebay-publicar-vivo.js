@@ -1,4 +1,4 @@
-// api/ebay-publicar-vivo.js
+/ api/ebay-publicar-vivo.js
 // Publica un listado EN VIVO (a la venta ya) en eBay PRODUCCIÓN, partiendo
 // de un "listing" + "imageUrls" YA subidas (las que guardó el borrador).
 // NO vuelve a subir fotos: usa las URLs directamente => publicar es rápido.
@@ -47,9 +47,19 @@ function envioPorPrenda(garment) {
 
 function categoriaPorPrenda(garment) {
   const g = (garment || "").toLowerCase();
+  // IMPORTANTE: todas deben ser categorías HOJA ("leaf") de eBay US.
+  // Una categoría padre (ej. 3034 = "Women's Shoes") hace que publishOffer
+  // falle con error 25005 ("category is not a leaf category").
   const cats = {
-    blouse: "53159", dress: "63861", pants: "63863", shorts: "11555",
-    sweater: "63866", shoes: "3034", bag: "169291", swimsuit: "63867", bra: "163225"
+    blouse: "53159",   // Women's Tops
+    dress: "63861",    // Women's Dresses
+    pants: "63863",    // Women's Pants
+    shorts: "11555",   // Women's Shorts
+    sweater: "63866",  // Women's Sweaters
+    shoes: "62107",    // Women's Sandals (HOJA) — antes era 3034 (padre, no publicaba)
+    bag: "169291",     // Women's Handbags
+    swimsuit: "63867", // Women's Swimwear
+    bra: "163225"      // Women's Bras
   };
   return cats[g] || "53159";
 }
@@ -58,7 +68,7 @@ function tipoPorPrenda(garment) {
   const g = (garment || "").toLowerCase();
   const tipos = {
     blouse: "Blouse", dress: "Dress", pants: "Pants", shorts: "Shorts",
-    sweater: "Sweater", shoes: "Shoes", bag: "Handbag", swimsuit: "Swimwear", bra: "Bra"
+    sweater: "Sweater", shoes: "Sandals", bag: "Handbag", swimsuit: "Swimwear", bra: "Bra"
   };
   return tipos[g] || "Top";
 }
@@ -149,6 +159,92 @@ function toAspects(specs, garment) {
   });
 
   return aspects;
+}
+
+// ====================================================================
+//  CREAR LA OFERTA con reintento automático del error 25002
+//  ("Offer entity already exists"). Si eBay dice que ya existe una oferta
+//  para este SKU, la buscamos por SKU, la BORRAMOS (DELETE) y reintentamos.
+//  Así Ana no tiene que cambiar el SKU a mano nunca más.
+// ====================================================================
+async function crearOfertaConReintento(token, offerBody, sku, pasos) {
+  // Intento 1: crear la oferta normalmente.
+  let ofRes = await fetch(`${INVENTORY_API}/offer`, {
+    method: "POST",
+    headers: H(token),
+    body: JSON.stringify(offerBody)
+  });
+  let ofData = await ofRes.json().catch(() => ({}));
+
+  if (ofRes.status === 200 || ofRes.status === 201) {
+    return { ok: true, offerId: ofData.offerId };
+  }
+
+  // ¿Es el error 25002 (la oferta ya existe para este SKU)?
+  const es25002 = (ofData.errors || []).some((x) => Number(x.errorId) === 25002);
+  if (!es25002) {
+    // Otro error distinto: devolver tal cual para que el handler lo reporte.
+    return { ok: false, status: ofRes.status, error: ofData };
+  }
+
+  pasos.push({ paso: "2a-detectado-25002", ok: true, nota: "Oferta huérfana encontrada, se borrará y reintentará." });
+
+  // Paso A: buscar la oferta existente de este SKU para sacar su offerId.
+  let offerIdHuerfano = null;
+  try {
+    const getRes = await fetch(
+      `${INVENTORY_API}/offer?sku=${encodeURIComponent(sku)}&marketplace_id=${MARKETPLACE}`,
+      { method: "GET", headers: H(token) }
+    );
+    const getData = await getRes.json().catch(() => ({}));
+    if (getRes.ok && Array.isArray(getData.offers) && getData.offers.length) {
+      offerIdHuerfano = getData.offers[0].offerId;
+    }
+  } catch (e) { /* si falla la búsqueda, lo manejamos abajo */ }
+
+  // Algunos errores 25002 traen el offerId directo en los parámetros.
+  if (!offerIdHuerfano) {
+    for (const err of (ofData.errors || [])) {
+      const p = (err.parameters || []).find((x) => x.value && /^\d+$/.test(x.value));
+      if (p) { offerIdHuerfano = p.value; break; }
+    }
+  }
+
+  if (!offerIdHuerfano) {
+    return {
+      ok: false,
+      status: ofRes.status,
+      error: { mensaje: "Se detectó el error 25002 pero no se pudo localizar la oferta existente para borrarla.", original: ofData }
+    };
+  }
+
+  // Paso B: borrar la oferta huérfana.
+  const delRes = await fetch(`${INVENTORY_API}/offer/${offerIdHuerfano}`, {
+    method: "DELETE",
+    headers: H(token)
+  });
+  // 204 = borrada OK. 404 = ya no existía (también está bien para reintentar).
+  if (delRes.status !== 204 && delRes.status !== 200 && delRes.status !== 404) {
+    const delErr = await delRes.json().catch(() => ({}));
+    return {
+      ok: false,
+      status: delRes.status,
+      error: { mensaje: "No se pudo borrar la oferta huérfana (offerId " + offerIdHuerfano + ").", original: delErr }
+    };
+  }
+  pasos.push({ paso: "2b-borrada-huerfana", ok: true, offerIdBorrado: offerIdHuerfano });
+
+  // Paso C: reintentar la creación de la oferta, ahora que el SKU quedó libre.
+  ofRes = await fetch(`${INVENTORY_API}/offer`, {
+    method: "POST",
+    headers: H(token),
+    body: JSON.stringify(offerBody)
+  });
+  ofData = await ofRes.json().catch(() => ({}));
+  if (ofRes.status === 200 || ofRes.status === 201) {
+    return { ok: true, offerId: ofData.offerId, reintentado: true };
+  }
+  return { ok: false, status: ofRes.status, error: ofData };
 }
 
 export default async function handler(req, res) {
@@ -248,19 +344,16 @@ export default async function handler(req, res) {
       offerBody.storeCategoryNames = [ruta];
     }
 
-    const ofRes = await fetch(`${INVENTORY_API}/offer`, {
-      method: "POST",
-      headers: H(token),
-      body: JSON.stringify(offerBody)
-    });
-    const ofData = await ofRes.json().catch(() => ({}));
-    if (ofRes.status !== 200 && ofRes.status !== 201) {
-      pasos.push({ paso: "2-oferta", ok: false, status: ofRes.status, error: ofData });
-      const msgs = (ofData.errors || []).map((x) => x.message).join(" | ");
-      return res.status(502).json({ error: "Fallo al crear la oferta: " + (msgs || JSON.stringify(ofData).slice(0, 400)), pasos });
+    // Crear la oferta, con reintento automático si sale el error 25002.
+    const resultadoOferta = await crearOfertaConReintento(token, offerBody, sku, pasos);
+    if (!resultadoOferta.ok) {
+      pasos.push({ paso: "2-oferta", ok: false, status: resultadoOferta.status, error: resultadoOferta.error });
+      const errObj = resultadoOferta.error || {};
+      const msgs = (errObj.errors || []).map((x) => x.message).join(" | ");
+      return res.status(502).json({ error: "Fallo al crear la oferta: " + (msgs || JSON.stringify(errObj).slice(0, 400)), pasos });
     }
-    const offerId = ofData.offerId;
-    pasos.push({ paso: "2-oferta", ok: true, offerId });
+    const offerId = resultadoOferta.offerId;
+    pasos.push({ paso: "2-oferta", ok: true, offerId, reintentado: !!resultadoOferta.reintentado });
 
     // 3) PUBLICAR => el listado queda EN VIVO (a la venta) de inmediato
     const pubRes = await fetch(`${INVENTORY_API}/offer/${offerId}/publish`, {
