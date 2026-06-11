@@ -149,6 +149,8 @@ const MAX = 24;
 let images = []; // {id, dataUrl, mediaType, file}
 let listing = null;
 let editing = false;
+let borradorAbiertoId = null;        // id del borrador que estamos editando
+let borradorAbiertoImageUrls = null; // fotos ya subidas a eBay de ese borrador
 
 const $ = (id) => document.getElementById(id);
 
@@ -250,6 +252,14 @@ function buildFixedNotes(garment, display){
   if(fixedNotes.condition) lines.push(fill(fixedNotes.condition));
   (fixedNotes.common||[]).forEach(c=>{ if(c && c.trim()) lines.push(fill(c)); });
   return lines.join('\n\n');
+}
+
+// Devuelve las notas fijas de ESTE listado:
+//  - si el listado tiene notas editadas a mano (listing.fixedNotesText), usa esas
+//  - si no, las arma desde las plantillas como siempre
+function notesForListing(l){
+  if(l && typeof l.fixedNotesText === 'string') return l.fixedNotesText;
+  return buildFixedNotes(l ? l.garment : '', l ? l.display : '');
 }
 
 // ---- Compresión de imágenes ----
@@ -388,6 +398,7 @@ $('btnGen').onclick=async ()=>{
     }
     listing=data;
     editing=false;
+    borradorAbiertoId=null;borradorAbiertoImageUrls=null;
     renderResult();
   }catch(err){
     $('errBox').innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo generar</strong><p style="white-space:pre-wrap">${err.message}</p></div></div>`;
@@ -400,19 +411,9 @@ $('btnGen').onclick=async ()=>{
 // ---- Texto plano del listado ----
 function buildText(l){
   const specs=(l.item_specifics||[]).map(s=>`${s.label}: ${s.value}`).join('\n');
-  const notes=buildFixedNotes(l.garment, l.display);
+  const notes=notesForListing(l);
   const descBlock = (notes ? notes+'\n\n' : '') + (l.description||'');
   return `${l.title||''}\n\nCATEGORY: ${l.category||''}\n\nITEM SPECIFICS:\n${specs}\n\nDESCRIPTION:\n${descBlock}\n\nSUGGESTED PRICE: $${l.price_min} – $${l.price_max} USD`;
-}
-
-// ---- Fecha por defecto para el agendado: +7 días a las 18:00 locales ----
-function defaultScheduleLocal(){
-  const d = new Date();
-  d.setDate(d.getDate()+7);
-  d.setHours(18,0,0,0);
-  // formato para input datetime-local: YYYY-MM-DDTHH:MM
-  const pad=(n)=>String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // ---- Render del resultado ----
@@ -425,6 +426,8 @@ function renderResult(){
     ? `<div class="spec"><span class="k">${s.label}</span><input class="edin" data-spec="${i}" value="${(s.value||'').replace(/"/g,'&quot;')}" style="font-size:14px;padding:6px 9px"></div>`
     : `<div class="spec"><span class="k">${s.label}</span><span>${s.value}</span></div>`
   ).join('');
+
+  const fixedNotesTxt = notesForListing(l);
 
   $('result').innerHTML=`
     <section class="fadeUp" style="margin-top:24px">
@@ -442,7 +445,15 @@ function renderResult(){
           ${editing?`<input class="edin" id="edCat" value="${(l.category||'').replace(/"/g,'&quot;')}">`:`<p style="margin:0;font-size:14.5px">${l.category||''}</p>`}
         </div>
         ${specsHtml?`<div><div class="field-h">✅ Item specifics</div><div style="display:grid;gap:6px">${specsHtml}</div></div>`:''}
-        ${(()=>{const n=buildFixedNotes(l.garment,l.display);return n?`<div><div class="field-h">📌 Notas fijas (van arriba de la descripción)</div><p style="margin:0;font-size:13.5px;line-height:1.5;white-space:pre-wrap;background:var(--amber-soft);border:1px solid var(--border);border-radius:12px;padding:12px 14px">${n.replace(/</g,'&lt;')}</p></div>`:'';})()}
+        <div>
+          <div class="field-h">📌 Notas fijas (van arriba de la descripción)</div>
+          ${editing
+            ? `<textarea id="edNotes" rows="7" class="edin" style="line-height:1.5">${(fixedNotesTxt||'').replace(/</g,'&lt;')}</textarea>
+               <p class="hint" style="margin:6px 2px 0">✏️ Lo que cambies aquí se guarda solo en este listado. Tus plantillas de "Ajustes de notas fijas" no se modifican.${ (typeof l.fixedNotesText==='string') ? ` <button id="btnNotesReset" style="all:unset;color:var(--amber);font-weight:600;cursor:pointer">↩️ Volver a las plantillas</button>` : '' }</p>`
+            : (fixedNotesTxt
+                ? `<p style="margin:0;font-size:13.5px;line-height:1.5;white-space:pre-wrap;background:var(--amber-soft);border:1px solid var(--border);border-radius:12px;padding:12px 14px">${fixedNotesTxt.replace(/</g,'&lt;')}</p>`
+                : `<p class="hint" style="margin:0">Sin notas fijas.</p>`)}
+        </div>
         <div>
           <div class="field-h">📝 Descripción</div>
           ${editing?`<textarea id="edDesc" rows="5" class="edin">${l.description||''}</textarea>`:`<p style="margin:0;font-size:14.5px;line-height:1.55;white-space:pre-wrap">${l.description||''}</p>`}
@@ -468,20 +479,15 @@ function renderResult(){
         <button class="ghost" id="btnNew">🔄 Nuevo</button>
       </div>
       <div id="nubeMsg"></div>
-
-      <div class="card" style="margin-top:14px">
-        <div class="field-h">📤 Publicar en eBay</div>
-        <p class="hint" style="margin-top:0">Dos opciones: <strong>Guardar en borrador</strong> deja el listado sin publicar en tu Seller Hub para revisarlo. <strong>Publicar agendado</strong> lo activa solo en la fecha que elijas. En ambos casos se usa el precio máximo ($${l.price_max}).</p>
-
-        <button class="draft" id="btnDraft">📝 Guardar en borrador (sin publicar)</button>
-        <div id="draftMsg"></div>
-
-        <label class="lbl" style="margin-top:16px">Fecha y hora de publicación (agendado)</label>
-        <input type="datetime-local" id="schedDate" class="datein" value="${defaultScheduleLocal()}">
-        <p class="hint" style="margin-top:6px;font-size:12.5px">🕐 La hora que elijas es tu hora local (${Intl.DateTimeFormat().resolvedOptions().timeZone}). El listado se activará a esa hora tuya.</p>
-        <button class="ebay" id="btnEbay">📤 Publicar en eBay (agendado)</button>
-        <div id="ebayMsg"></div>
-      </div>
+      ${ (borradorAbiertoId && borradorAbiertoImageUrls && borradorAbiertoImageUrls.length)
+        ? `<div class="card" style="margin-top:14px">
+             <div class="field-h">📤 Publicar este borrador en eBay</div>
+             <p class="hint" style="margin-top:0">Revisa y edita arriba lo que necesites. Cuando esté listo, publica en vivo en eBay.</p>
+             <button class="ebay" id="btnPubAbierto">📤 Publicar en eBay</button>
+             <div id="pubAbiertoForm"></div>
+             <div id="pubAbiertoMsg"></div>
+           </div>`
+        : '' }
     </section>`;
 
   $('btnEdit').onclick=()=>{ saveEdits(); editing=!editing; renderResult(); };
@@ -490,8 +496,10 @@ function renderResult(){
   $('btnShare').onclick=shareIt;
   $('btnDl').onclick=download;
   $('btnNew').onclick=resetAll;
-  $('btnEbay').onclick=publishToEbay;
-  $('btnDraft').onclick=saveToDraft;
+  const bnr=$('btnNotesReset');
+  if(bnr) bnr.onclick=(e)=>{ e.preventDefault(); saveEdits(); delete listing.fixedNotesText; renderResult(); };
+  const bpa=$('btnPubAbierto');
+  if(bpa) bpa.onclick=()=>{ saveEdits(); mostrarFormPublicarAbierto(); };
 }
 
 function saveEdits(){
@@ -499,123 +507,18 @@ function saveEdits(){
   const t=$('edTitle'); if(t) listing.title=t.value;
   const c=$('edCat'); if(c) listing.category=c.value;
   const d=$('edDesc'); if(d) listing.description=d.value;
+  const n=$('edNotes');
+  if(n){
+    const auto = buildFixedNotes(listing.garment, listing.display);
+    // Solo guardar como nota manual si el texto difiere del automático.
+    if(n.value !== auto) listing.fixedNotesText = n.value;
+    else delete listing.fixedNotesText;
+  }
   const pmin=$('edPmin'); if(pmin && pmin.value!=='') listing.price_min=Number(pmin.value);
   const pmax=$('edPmax'); if(pmax && pmax.value!=='') listing.price_max=Number(pmax.value);
   document.querySelectorAll('[data-spec]').forEach(inp=>{
     listing.item_specifics[+inp.dataset.spec].value=inp.value;
   });
-}
-
-// ---- GUARDAR EN BORRADOR (sin publicar) ----
-async function saveToDraft(){
-  saveEdits();
-  const btn=$('btnDraft');
-  const msg=$('draftMsg');
-  msg.innerHTML='';
-
-  btn.disabled=true;
-  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Guardando borrador…';
-
-  try{
-    // Reusar las fotos comprimidas (las mismas que se enviaron a la IA)
-    const fitted = await fitPayload();
-    const imgs = fitted.slice(0,24).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
-
-    // Adjuntar las notas fijas ya armadas para que el backend las ponga en la descripción
-    const listingToSend = {
-      ...listing,
-      fixedNotes: buildFixedNotes(listing.garment, listing.display)
-    };
-
-    const res=await fetch('/api/ebay-draft',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ listing: listingToSend, images: imgs })
-    });
-    let data;
-    try{ data=await res.json(); }
-    catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo.'); }
-    if(!res.ok || !data.ok){
-      let detalle = data.error || 'No se pudo guardar el borrador.';
-      if(data.errorDetalle) detalle += '\n\nDETALLE: ' + data.errorDetalle;
-      if(Array.isArray(data.pasos)){
-        const fail = data.pasos.find(p=>p.ok===false);
-        if(fail) detalle += '\n\nPASO QUE FALLÓ: ' + fail.paso + ' [' + (fail.status||'') + ']\n' + JSON.stringify(fail.error).slice(0,400);
-      }
-      throw new Error(detalle);
-    }
-    msg.innerHTML=`<div class="ok fadeUp">✅<div><strong>¡Borrador guardado en eBay!</strong><p>Lo verás en tu Seller Hub como borrador para revisarlo y publicarlo cuando quieras. SKU: ${data.sku}. Fotos subidas: ${data.fotos}.</p></div></div>`;
-  }catch(err){
-    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo guardar el borrador</strong><p style="white-space:pre-wrap">${err.message}</p></div></div>`;
-  }finally{
-    btn.disabled=false;
-    btn.innerHTML='📝 Guardar en borrador (sin publicar)';
-  }
-}
-
-// ---- PUBLICAR EN EBAY (agendado) ----
-async function publishToEbay(){
-  saveEdits();
-  const btn=$('btnEbay');
-  const msg=$('ebayMsg');
-  msg.innerHTML='';
-
-  // Validar fecha
-  const val=$('schedDate').value;
-  if(!val){
-    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>Falta la fecha</strong><p>Elige cuándo quieres que se publique.</p></div></div>`;
-    return;
-  }
-  // Convertir la fecha local elegida a UTC ISO (lo que eBay espera)
-  const localDate=new Date(val);
-  if(localDate.getTime() <= Date.now()){
-    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>Fecha en el pasado</strong><p>Elige una fecha y hora futuras.</p></div></div>`;
-    return;
-  }
-  const startDateUTC=localDate.toISOString().split('.')[0]+'Z';
-
-  btn.disabled=true;
-  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Publicando en eBay…';
-
-  try{
-    // Reusar las fotos comprimidas (las mismas que se enviaron a la IA)
-    const fitted = await fitPayload();
-    const imgs = fitted.slice(0,12).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
-
-    // Adjuntar las notas fijas ya armadas para que el backend las ponga en la descripción
-    const listingToSend = {
-      ...listing,
-      fixedNotes: buildFixedNotes(listing.garment, listing.display)
-    };
-
-    const res=await fetch('/api/ebay-publicar',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ listing: listingToSend, images: imgs, startDate: startDateUTC })
-    });
-    let data;
-    try{ data=await res.json(); }
-    catch{ throw new Error('El servidor no respondió correctamente. Intenta de nuevo.'); }
-    if(!res.ok || !data.ok){
-      let detalle = data.error || 'No se pudo publicar.';
-      // Mostrar el detalle crudo de eBay para diagnosticar
-      if(data.errorDetalle) detalle += '\n\nDETALLE: ' + data.errorDetalle;
-      // Si hay pasos, mostrar el primero que falló
-      if(Array.isArray(data.pasos)){
-        const fail = data.pasos.find(p=>p.ok===false);
-        if(fail) detalle += '\n\nPASO QUE FALLÓ: ' + fail.paso + ' [' + (fail.status||'') + ']\n' + JSON.stringify(fail.error).slice(0,400);
-      }
-      throw new Error(detalle);
-    }
-    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const fechaTxt = new Date(startDateUTC).toLocaleString('es-MX',{dateStyle:'long',timeStyle:'short'});
-    msg.innerHTML=`<div class="ok fadeUp">✅<div><strong>¡Listado agendado en eBay!</strong><p>Se activará el <strong>${fechaTxt}</strong> (tu hora, ${tz}). ID del listado: ${data.listingId}. Lo verás en tu Seller Hub como programado.</p></div></div>`;
-  }catch(err){
-    msg.innerHTML=`<div class="err fadeUp">⚠️<div><strong>No se pudo publicar</strong><p style="white-space:pre-wrap">${err.message}</p></div></div>`;
-  }finally{
-    btn.disabled=false;
-    btn.innerHTML='📤 Publicar en eBay (agendado)';
-  }
 }
 
 async function copyAll(){
@@ -643,6 +546,7 @@ function download(){
 }
 function resetAll(){
   images=[];listing=null;editing=false;
+  borradorAbiertoId=null;borradorAbiertoImageUrls=null;
   $('notes').value='';
   $('cond').selectedIndex=3;
   renderThumbs();renderResult();$('errBox').innerHTML='';
@@ -711,7 +615,7 @@ async function guardarEnNube(){
       const df=await rf.json();
       if(rf.ok && df.ok && df.imageUrls && df.imageUrls.length){
         imageUrls=df.imageUrls;
-        listingToSave={ ...listing, fixedNotes: buildFixedNotes(listing.garment, listing.display) };
+        listingToSave={ ...listing, fixedNotes: notesForListing(listing) };
       }
     }catch(e){ /* si fallan las fotos, igual guardamos el texto */ }
 
@@ -726,7 +630,7 @@ async function guardarEnNube(){
     if(!r.ok || !data.ok){ throw new Error(data.error||'No se pudo guardar.'); }
 
     if(imageUrls){
-      $('nubeMsg').innerHTML='<div class="ok fadeUp">✅<div><strong>Guardado y listo para publicar</strong><p>Desde 📁 Mis borradores puedes publicarlo en vivo en eBay con un toque.</p></div></div>';
+      $('nubeMsg').innerHTML='<div class="ok fadeUp">✅<div><strong>Guardado y listo para publicar</strong><p>Desde 📁 Mis borradores puedes abrirlo, revisarlo y publicarlo en eBay.</p></div></div>';
     }else{
       $('nubeMsg').innerHTML='<div class="ok fadeUp">✅<div><strong>Guardado en Mis borradores</strong><p>Se guardó el texto para copiar. (No se pudieron subir las fotos, así que este no se puede publicar directo.)</p></div></div>';
     }
@@ -769,14 +673,14 @@ async function cargarBorradores(){
     cont.innerHTML=arr.map(function(b){
       var fecha=new Date(b.actualizado||b.creado||Date.now()).toLocaleString();
       var titulo=(b.titulo||'Sin título').replace(/</g,'&lt;');
-      var btnPublicar = b.publicable
-        ? '<button class="ghost" id="pub-'+b.id+'" style="border:1px solid var(--sage);background:#fff;color:var(--sage);border-radius:12px;padding:9px 12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--body)" onclick="mostrarFormPublicar(\''+b.id+'\')">📤 Publicar en eBay</button>'
+      var btnAbrir = b.publicable
+        ? '<button class="ghost" style="border:1px solid var(--amber);background:#fff;color:var(--amber);border-radius:12px;padding:9px 12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--body)" onclick="abrirBorrador(\''+b.id+'\')">📂 Abrir</button>'
         : '';
       return '<div class="card" style="margin-bottom:12px">'
         +'<p style="margin:0 0 4px;font-weight:600;font-size:15px">'+titulo+'</p>'
         +'<p class="hint" style="margin:0 0 10px">'+fecha+(b.publicable?' · ✅ listo para publicar':'')+'</p>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-        +btnPublicar
+        +btnAbrir
         +'<button class="ghost" style="border:1px solid var(--border);background:#fff;border-radius:12px;padding:9px 12px;font-size:13.5px;cursor:pointer;font-family:var(--body)" onclick="copiarBorrador(\''+b.id+'\')">📋 Copiar</button>'
         +'<button class="ghost" style="border:1px solid #ffd3c2;background:#fff4f0;color:#9c2a14;border-radius:12px;padding:9px 12px;font-size:13.5px;cursor:pointer;font-family:var(--body)" onclick="borrarBorrador(\''+b.id+'\')">🗑️ Borrar</button>'
         +'</div>'
@@ -805,85 +709,103 @@ async function copiarBorrador(id){
   }catch(err){ alert('No se pudo copiar: '+err.message); }
 }
 
-// Muestra el mini-formulario (precio + envio) antes de publicar
-function mostrarFormPublicar(id){
-  var cont=$('pubform-'+id);
-  if(!cont) return;
-  // Leer el borrador para sacar el precio sugerido
-  fetch('/api/borradores',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({accion:'leer',id:id})
-  }).then(function(r){return r.json();}).then(function(d){
-    var b=(d&&d.borrador)||{};
-    var l=b.listing||{};
-    var precioSug = l.price_max || l.price_min || '';
-    var catSug = sugerirCategoriaTienda(l.garment);
-    var opcionesCat = STORE_CATEGORIES.map(function(c){
-      var sel = (c===catSug) ? ' selected' : '';
-      return '<option value="'+c+'"'+sel+'>'+c+'</option>';
-    }).join('');
-    cont.innerHTML =
-      '<div class="card" style="margin-top:10px;background:var(--paper)">'
-      +'<label class="lbl">Precio (USD)</label>'
-      +'<input id="pubprecio-'+id+'" type="number" inputmode="decimal" class="edin" value="'+precioSug+'" style="margin-bottom:12px">'
-      +'<label class="lbl">Categor\u00eda de tienda</label>'
-      +'<select id="pubcat-'+id+'" class="edin" style="margin-bottom:6px">'
-      +opcionesCat
-      +'</select>'
-      +'<label class="lbl" style="margin-top:12px">Env\u00edo</label>'
-      +'<select id="pubenvio-'+id+'" class="edin" style="margin-bottom:6px">'
-      +'<option value="6.50">$6.50 \u2014 Ligero (blusas/tops)</option>'
-      +'<option value="7.00">$7.00 \u2014 Blusas</option>'
-      +'<option value="8.99" selected>$8.99 \u2014 Su\u00e9ter/vestido</option>'
-      +'<option value="9.98">$9.98 \u2014 Pantal\u00f3n/pesado</option>'
-      +'</select>'
-      +'<label class="lbl" style="margin-top:12px">SKU / Ubicaci\u00f3n (d\u00f3nde guardaste la prenda)</label>'
-      +'<input id="pubsku-'+id+'" type="text" class="edin" placeholder="Ej.: CAJA-3, Estante A2\u2026" style="margin-bottom:6px">'
-      +'<label class="lbl" style="margin-top:12px">\u00bfAceptar ofertas? (Best Offer)</label>'
-      +'<select id="puboferta-'+id+'" class="edin" style="margin-bottom:6px">'
-      +'<option value="si" selected>S\u00ed \u2014 aceptar ofertas (t\u00fa decides cada una)</option>'
-      +'<option value="no">No \u2014 solo precio fijo</option>'
-      +'</select>'
-      +'<button class="ebay" id="pubconfirm-'+id+'" style="margin-top:10px" onclick="publicarBorrador(\''+id+'\')">\ud83d\udce4 Publicar ahora en vivo</button>'
-      +'</div>';
-  }).catch(function(){
-    cont.innerHTML='<p class="hint" style="color:#9c2a14">No se pudo cargar el borrador. Intenta de nuevo.</p>';
-  });
-}
-
-async function publicarBorrador(id){
-  var btn=$('pubconfirm-'+id);
-  var msg=$('pubmsg-'+id);
-  if(msg) msg.innerHTML='';
-  // Leer precio y envio elegidos del mini-formulario
-  var precioEl=$('pubprecio-'+id);
-  var envioEl=$('pubenvio-'+id);
-  var skuEl=$('pubsku-'+id);
-  var ofertaEl=$('puboferta-'+id);
-  var catEl=$('pubcat-'+id);
-  var precioElegido = precioEl ? precioEl.value : '';
-  var envioElegido = envioEl ? envioEl.value : '';
-  var skuElegido = skuEl ? skuEl.value : '';
-  var aceptaOfertas = ofertaEl ? (ofertaEl.value !== 'no') : true;
-  var categoriaTienda = catEl ? catEl.value : '';
-  if(!confirm('\u00bfPublicar EN VIVO en eBay a $'+precioElegido+' con env\u00edo $'+envioElegido+'? Quedar\u00e1 a la venta de inmediato.')) return;
-  if(btn){ btn.disabled=true; btn.textContent='\u23f3 Publicando\u2026'; }
+// ===== ABRIR un borrador para revisarlo / editarlo antes de publicar =====
+async function abrirBorrador(id){
   try{
-    var rl=await fetch('/api/borradores',{
+    const r=await fetch('/api/borradores',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({accion:'leer',id:id})
     });
-    var dl=await rl.json();
-    if(!rl.ok || !dl.ok){ throw new Error(dl.error||'No se pudo leer el borrador.'); }
-    var b=dl.borrador||{};
-    if(!b.listing || !b.imageUrls || !b.imageUrls.length){
-      throw new Error('Este borrador no tiene fotos subidas a eBay. Vuelve a generarlo y gu\u00e1rdalo de nuevo para poder publicarlo directo.');
+    const data=await r.json();
+    if(!r.ok || !data.ok){ throw new Error(data.error||'Error'); }
+    const b=data.borrador||{};
+    if(!b.listing){
+      alert('Este borrador no tiene datos editables (solo texto). Vuelve a generarlo y guárdalo de nuevo para poder abrirlo.');
+      return;
     }
+    // Cargar el listado del borrador en la pantalla principal
+    listing = b.listing;
+    // Si el borrador trae notas fijas guardadas, respetarlas como notas de ESTE listado
+    if(typeof b.listing.fixedNotes === 'string' && b.listing.fixedNotes.trim()){
+      listing.fixedNotesText = b.listing.fixedNotes;
+    }
+    borradorAbiertoId = id;
+    borradorAbiertoImageUrls = b.imageUrls || null;
+    editing = false;
+
+    // Salir del panel de borradores y mostrar la pantalla principal
+    $('panelBorradores').style.display='none';
+    document.querySelectorAll('.wrap > section').forEach(s=>{ if(s.id!=='panelBorradores') s.style.display=''; });
+    document.querySelectorAll('.wrap > .card').forEach(c=>{ c.style.display=''; });
+
+    renderResult();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(err){ alert('No se pudo abrir el borrador: '+err.message); }
+}
+
+// Muestra el mini-formulario (precio + envío + categoría + SKU + ofertas)
+// para publicar el borrador que tenemos ABIERTO en la pantalla principal.
+function mostrarFormPublicarAbierto(){
+  var cont=$('pubAbiertoForm');
+  if(!cont) return;
+  var l=listing||{};
+  var precioSug = l.price_max || l.price_min || '';
+  var catSug = sugerirCategoriaTienda(l.garment);
+  var opcionesCat = STORE_CATEGORIES.map(function(c){
+    var sel = (c===catSug) ? ' selected' : '';
+    return '<option value="'+c+'"'+sel+'>'+c+'</option>';
+  }).join('');
+  cont.innerHTML =
+    '<div class="card" style="margin-top:12px;background:var(--paper)">'
+    +'<label class="lbl">Precio (USD)</label>'
+    +'<input id="pubaPrecio" type="number" inputmode="decimal" class="edin" value="'+precioSug+'" style="margin-bottom:12px">'
+    +'<label class="lbl">Categor\u00eda de tienda</label>'
+    +'<select id="pubaCat" class="edin" style="margin-bottom:6px">'
+    +opcionesCat
+    +'</select>'
+    +'<label class="lbl" style="margin-top:12px">Env\u00edo</label>'
+    +'<select id="pubaEnvio" class="edin" style="margin-bottom:6px">'
+    +'<option value="6.50">$6.50 \u2014 Ligero (blusas/tops)</option>'
+    +'<option value="7.00">$7.00 \u2014 Blusas</option>'
+    +'<option value="8.99" selected>$8.99 \u2014 Su\u00e9ter/vestido</option>'
+    +'<option value="9.98">$9.98 \u2014 Pantal\u00f3n/pesado</option>'
+    +'</select>'
+    +'<label class="lbl" style="margin-top:12px">SKU / Ubicaci\u00f3n (d\u00f3nde guardaste la prenda)</label>'
+    +'<input id="pubaSku" type="text" class="edin" placeholder="Ej.: CAJA-3, Estante A2\u2026" style="margin-bottom:6px">'
+    +'<label class="lbl" style="margin-top:12px">\u00bfAceptar ofertas? (Best Offer)</label>'
+    +'<select id="pubaOferta" class="edin" style="margin-bottom:6px">'
+    +'<option value="si" selected>S\u00ed \u2014 aceptar ofertas (t\u00fa decides cada una)</option>'
+    +'<option value="no">No \u2014 solo precio fijo</option>'
+    +'</select>'
+    +'<button class="ebay" id="pubaConfirm" style="margin-top:10px">\ud83d\udce4 Publicar ahora en vivo</button>'
+    +'</div>';
+  $('pubaConfirm').onclick=publicarAbierto;
+}
+
+async function publicarAbierto(){
+  saveEdits();
+  var btn=$('pubaConfirm');
+  var msg=$('pubAbiertoMsg');
+  if(msg) msg.innerHTML='';
+  if(!borradorAbiertoImageUrls || !borradorAbiertoImageUrls.length){
+    if(msg) msg.innerHTML='<div class="err fadeUp" style="margin-top:10px">\u26a0\ufe0f<div><strong>Sin fotos en eBay</strong><p>Este borrador no tiene fotos subidas. Vuelve a generarlo y gu\u00e1rdalo de nuevo.</p></div></div>';
+    return;
+  }
+  var precioElegido = $('pubaPrecio') ? $('pubaPrecio').value : '';
+  var envioElegido  = $('pubaEnvio') ? $('pubaEnvio').value : '';
+  var skuElegido    = $('pubaSku') ? $('pubaSku').value : '';
+  var aceptaOfertas = $('pubaOferta') ? ($('pubaOferta').value !== 'no') : true;
+  var categoriaTienda = $('pubaCat') ? $('pubaCat').value : '';
+  if(!confirm('\u00bfPublicar EN VIVO en eBay a $'+precioElegido+' con env\u00edo $'+envioElegido+'? Quedar\u00e1 a la venta de inmediato.')) return;
+  if(btn){ btn.disabled=true; btn.textContent='\u23f3 Publicando\u2026'; }
+  try{
+    // Adjuntar las notas fijas de ESTE listado (editadas o automáticas)
+    var listingToSend = Object.assign({}, listing, { fixedNotes: notesForListing(listing) });
     var rp=await fetch('/api/ebay-publicar-vivo',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ listing: b.listing, imageUrls: b.imageUrls, precioElegido: precioElegido, envioElegido: envioElegido, skuElegido: skuElegido, aceptaOfertas: aceptaOfertas, categoriaTienda: categoriaTienda })
+      body:JSON.stringify({ listing: listingToSend, imageUrls: borradorAbiertoImageUrls, precioElegido: precioElegido, envioElegido: envioElegido, skuElegido: skuElegido, aceptaOfertas: aceptaOfertas, categoriaTienda: categoriaTienda })
     });
     var dp;
     try{ dp=await rp.json(); }catch(e){ throw new Error('El servidor no respondi\u00f3 bien. Intenta de nuevo.'); }
@@ -897,8 +819,8 @@ async function publicarBorrador(id){
       throw new Error(detalle);
     }
     if(msg) msg.innerHTML='<div class="ok fadeUp" style="margin-top:10px">\u2705<div><strong>\u00a1Publicado en vivo en eBay!</strong><p>Ya est\u00e1 a la venta. ID del listado: '+dp.listingId+'.</p></div></div>';
-    var formc=$('pubform-'+id); if(formc) formc.innerHTML='';
-    var pb=$('pub-'+id); if(pb){ pb.textContent='\u2705 Publicado'; pb.disabled=true; }
+    var formc=$('pubAbiertoForm'); if(formc) formc.innerHTML='';
+    var bpa=$('btnPubAbierto'); if(bpa){ bpa.textContent='\u2705 Publicado'; bpa.disabled=true; }
   }catch(err){
     if(msg) msg.innerHTML='<div class="err fadeUp" style="margin-top:10px">\u26a0\ufe0f<div><strong>No se pudo publicar</strong><p style="white-space:pre-wrap">'+err.message+'</p></div></div>';
     if(btn){ btn.disabled=false; btn.textContent='\ud83d\udce4 Publicar ahora en vivo'; }
