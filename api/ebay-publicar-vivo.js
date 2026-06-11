@@ -1,4 +1,4 @@
-/ api/ebay-publicar-vivo.js
+// api/ebay-publicar-vivo.js
 // Publica un listado EN VIVO (a la venta ya) en eBay PRODUCCIÓN, partiendo
 // de un "listing" + "imageUrls" YA subidas (las que guardó el borrador).
 // NO vuelve a subir fotos: usa las URLs directamente => publicar es rápido.
