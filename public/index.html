@@ -311,18 +311,29 @@ async function addFiles(fileList){
   renderThumbs();
 }
 
+// Mide el tamaño REAL que viajará en el JSON: el base64 va tal cual (no se
+// decodifica), así que contamos su longitud directa + ~5% por las llaves/comas.
 function payloadBytes(imgs){
-  return imgs.reduce((sum,i)=>sum + (i.dataUrl.split(',')[1]||'').length*0.75, 0);
+  const raw = imgs.reduce((sum,i)=>sum + (i.dataUrl.split(',')[1]||'').length, 0);
+  return raw * 1.05;
 }
 
-async function fitPayload(){
-  const LIMIT = 4.0 * 1024 * 1024;
-  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5}, {px:450,q:0.45}, {px:400,q:0.4}, {px:340,q:0.38}, {px:300,q:0.35}, {px:260,q:0.32} ];
-  let working = images.map(i=>({...i}));
+// ====================================================================
+//  COMPRESIÓN PARA LA IA  (endpoint /api/generate)
+//  Solo importan las 16 fotos que se mandan a la IA. Vercel corta el body
+//  a 4.5 MB, así que apuntamos a un límite seguro de 3.3 MB midiendo el
+//  base64 real. Esto arregla el error "Demasiadas fotos para enviar".
+// ====================================================================
+async function fitPayloadIA(){
+  const LIMIT = 3.3 * 1024 * 1024;  // margen seguro bajo el tope 4.5MB de Vercel
+  const steps = [ {px:900,q:0.72}, {px:800,q:0.65}, {px:700,q:0.6}, {px:600,q:0.55}, {px:500,q:0.5}, {px:450,q:0.45}, {px:400,q:0.4}, {px:340,q:0.38}, {px:300,q:0.35}, {px:260,q:0.32}, {px:220,q:0.3} ];
+  // Solo las 16 que se envían a la IA.
+  const base = images.slice(0, 16);
+  let working = base.map(i=>({...i}));
   if(payloadBytes(working) <= LIMIT) return working;
   for(const s of steps){
     working = [];
-    for(const img of images){
+    for(const img of base){
       if(img.file){
         try{
           const {dataUrl,mediaType}=await compress(img.file, s.px, s.q);
@@ -334,10 +345,33 @@ async function fitPayload(){
     }
     if(payloadBytes(working) <= LIMIT) return working;
   }
-  // Último recurso: si aún con la compresión máxima no cabe (muchísimas fotos),
-  // recortar quitando fotos del final hasta que entre, para que NUNCA falle.
+  // Último recurso: si aún con la compresión máxima no cabe, recortar del final
+  // (esto solo afecta a la IA, NO a las fotos que ve el comprador).
   while(working.length > 1 && payloadBytes(working) > LIMIT){
     working.pop();
+  }
+  return working;
+}
+
+// ====================================================================
+//  COMPRESIÓN PARA eBAY  (endpoint /api/ebay-subir-fotos)
+//  Aquí van TODAS las fotos (hasta 24) que verá el comprador. Se suben en
+//  paralelo (Promise.all en el backend), así que comprimimos cada una a un
+//  tamaño de galería razonable (eBay re-escala igual) y NUNCA recortamos:
+//  el comprador debe ver todas las fotos.
+// ====================================================================
+async function fitPayloadEbay(){
+  const all = images.slice(0, 24);
+  let working = [];
+  for(const img of all){
+    if(img.file){
+      try{
+        const {dataUrl,mediaType} = await compress(img.file, 1100, 0.78);
+        working.push({...img, dataUrl, mediaType});
+      }catch{ working.push({...img}); }
+    } else {
+      working.push({...img});
+    }
   }
   return working;
 }
@@ -373,8 +407,7 @@ $('btnGen').onclick=async ()=>{
   $('result').innerHTML='';
 
   try{
-    const fitted = await fitPayload();
-    const toSend = fitted.slice(0, 16);
+    const toSend = await fitPayloadIA();  // ya devuelve máx. 16, bajo el tope de Vercel
     const res=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -605,8 +638,9 @@ async function guardarEnNube(){
     let imageUrls=null;
     let listingToSave=null;
     try{
-      const fitted=await fitPayload();
-      const imgs=fitted.slice(0,24).map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
+      // Usar TODAS las fotos (hasta 24) para que el comprador las vea completas.
+      const fitted=await fitPayloadEbay();
+      const imgs=fitted.map(i=>({ data:i.dataUrl.split(',')[1], mediaType:i.mediaType }));
       const rf=await fetch('/api/ebay-subir-fotos',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
